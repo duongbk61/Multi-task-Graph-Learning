@@ -13,17 +13,37 @@ class ExpertRules:
     @staticmethod
     def compute_ponzi_score(features):
         # features shape: [N, 14]
-        score = (features[:, 0] > 15).float() * 0.4 + \
-                (features[:, 11] > 15).float() * 0.4 + \
-                (features[:, 6] <= -1).float() * 0.2
+        # Xét theo bảng: Call (Dim 0-6), Trans (Dim 7-13)
+        # Dim 0: Tổng giá trị gửi đi (Call)
+        # Dim 6: Tần suất nhận (Call)
+        # Dim 11: Số dư (Trans)
+        
+        total_sent_call = features[:, 0]
+        freq_recv_call = features[:, 6]
+        balance_trans = features[:, 11]
+        
+        # Ponzi thường có tổng gửi đi lớn (trả lãi bùng nổ), và số dư rỗng hoặc bất thường
+        score = (total_sent_call > 15).float() * 0.4 + \
+                (balance_trans > 15).float() * 0.4 + \
+                (freq_recv_call <= 0).float() * 0.2
         return score
 
     @staticmethod
     def compute_phish_score(features):
-        # features shape: [N, 14]
-        score = (features[:, 7] < 100).float() * 0.35 + \
-                (features[:, 8] < 100).float() * 0.35 + \
-                (features[:, 12] < 10).float() * 0.30
+        # Nhóm đặc trưng Transaction (Dim 7-13)
+        # Dim 7: Tổng giá trị gửi đi (Trans)
+        # Dim 8: Tổng giá trị nhận về (Trans)
+        # Dim 12: Tần suất khởi tạo/gửi đi (Trans)
+        
+        total_sent_trans = features[:, 7]
+        total_recv_trans = features[:, 8]
+        freq_sent_trans = features[:, 12]
+        
+        # Phishing thường là dạng tài khoản "Burner" (Tuổi thọ giao dịch siêu ngắn)
+        # Tần suất rất thấp và Tổng giá trị giao dịch rất nhỏ do bị block hoặc tẩu tán nhanh
+        score = (total_sent_trans < 100).float() * 0.35 + \
+                (total_recv_trans < 100).float() * 0.35 + \
+                (freq_sent_trans < 10).float() * 0.30
         return score
 
 

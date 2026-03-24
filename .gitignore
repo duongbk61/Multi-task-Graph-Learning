@@ -5,3 +5,4 @@ tmp.py
 *.pyc
 .idea/
 *.log
+pretrain_model/
