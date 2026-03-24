@@ -38,9 +38,9 @@ def generated_generator_sixedges(args, data, device):
                               dtype=float).repeat(
             len(head_node_index), 1)
         category_list.append(edge_onehot)
-    features_x = np.vstack(x_list)
-    features_c = np.vstack(c_list)
-    features_e_type = np.vstack(category_list)
+    features_x = np.vstack(x_list).astype(np.float32)
+    features_c = np.vstack(c_list).astype(np.float32)
+    features_e_type = np.vstack(category_list).astype(np.float32)
     del x_list
     del c_list
     del category_list

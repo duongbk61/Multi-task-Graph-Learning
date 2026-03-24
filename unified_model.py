@@ -4,59 +4,15 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import Linear
 import torch.nn.functional as F
-from torch_geometric.nn.inits import glorot, reset
+from torch_geometric.nn.inits import reset
 from torch_geometric.nn import MessagePassing
 from attention_conv import my_conv
+from model import TripletLoss
 
-
-def group(xs: List[Tensor], aggr: Optional[str]) -> Optional[Tensor]:
-    if len(xs) == 0:
-        return None
-    elif aggr is None:
-        return torch.stack(xs, dim=1)
-    elif len(xs) == 1:
-        return xs[0]
-    elif aggr == "cat":
-        return torch.cat(xs, dim=-1)
-    else:
-        out = torch.stack(xs, dim=0)
-        out = getattr(torch, aggr)(out, dim=0)
-        out = out[0] if isinstance(out, tuple) else out
-        return out
-
-
-class TripletLoss(nn.Module):
-    '''
-    Compute normal triplet loss or soft margin triplet loss given triplets
-    '''
-
-    def __init__(self, margin=None):
-        super(TripletLoss, self).__init__()
-        self.margin = margin
-        if self.margin is None:  # if no margin assigned, use soft-margin
-            self.Loss = nn.SoftMarginLoss()
-        else:
-            self.Loss = nn.TripletMarginLoss(margin=margin, p=2)
-
-    def forward(self, anchor, pos, neg):
-        if self.margin is None:
-            num_samples = anchor.shape[0]
-            y = torch.ones((num_samples, 1)).view(-1)
-            if anchor.is_cuda: y = y.cuda()
-            ap_dist = torch.norm(anchor - pos, 2, dim=1).view(-1)
-            an_dist = torch.norm(anchor - neg, 2, dim=1).view(-1)
-            loss = self.Loss(an_dist - ap_dist, y)
-        else:
-            loss = self.Loss(anchor, pos, neg)
-
-        return loss
-
-
-class Unified_HMSL(MessagePassing):
+class UnifiedHMSL(MessagePassing):
     def __init__(self, hidden, out_channels, data, concat):
         super().__init__(aggr='sum')
         self.concat_num = concat
-        # self.target = target_node
         self.loss_co = TripletLoss(margin=0.3)
 
         self.lin_dict = torch.nn.ModuleDict()
@@ -64,9 +20,10 @@ class Unified_HMSL(MessagePassing):
         for node_type in data.node_types:
             self.lin_dict[node_type] = Linear(-1, hidden)
             self.lin_dict_mean[node_type] = Linear(hidden, hidden)
-
-        self.head_ponzi = Linear(hidden, out_channels) # Phân loại Ponzi (Target: CA)
-        self.head_phish = Linear(hidden, out_channels) # Phân loại Phish (Target: EOA)
+        
+        # Multi-task Heads
+        self.head_ponzi = Linear(hidden, out_channels) # For CA nodes
+        self.head_phish = Linear(hidden, out_channels) # For EOA nodes
 
         self.k_lin = torch.nn.ModuleDict()
         self.q_lin = torch.nn.ModuleDict()
@@ -88,7 +45,8 @@ class Unified_HMSL(MessagePassing):
         reset(self.v_lin)
         reset(self.conv)
         reset(self.conv1)
-        self.lin_out.reset_parameters()
+        self.head_ponzi.reset_parameters()
+        self.head_phish.reset_parameters()
 
     def forward(self, x_dict, edge_index):
         CA_hidden_ls = []
@@ -120,11 +78,10 @@ class Unified_HMSL(MessagePassing):
         out_dict = self.conv(out_dict, edge_index)
         out_dict = self.conv1(out_dict, edge_index)
 
-        # out = self.lin_out(out_dict[self.target])
-        # Lấy đặc trưng sau Conv của cả CA và EOA
+        # Multi-task Outputs
         out_ponzi = self.head_ponzi(out_dict['CA'])
         out_phish = self.head_phish(out_dict['EOA'])
-        # loss = self.contrast_module(CA_hidden_ls, EOA_hidden_ls)
+        
         loss_co = self.contrast_module(CA_hidden_ls, EOA_hidden_ls)
 
         return out_ponzi, out_phish, loss_co

@@ -1,0 +1,7 @@
+HEIG.zip
+__pycache__/
+data/
+tmp.py
+*.pyc
+.idea/
+*.log

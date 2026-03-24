@@ -136,7 +136,13 @@ if __name__ == '__main__':
         dataset = Phish(path)
         target_node = 'EOA'
     data = dataset[0]
-    print(data)
+    # print(data)
+    # Print sample node features for better understanding
+    # print("Sample node features for 'CA':")
+    # print(data.x_dict['CA'][:5])  # Print first 5 nodes' features for 'CA'
+
+    # print("\nSample node features for 'EOA':")
+    # print(data.x_dict['EOA'][:5])  # Print first 5 nodes' features for 'EOA'
     train_input_nodes = (target_node, data[target_node].train_mask)
     val_input_nodes = (target_node, data[target_node].val_mask)
     test_input_nodes = (target_node, data[target_node].test_mask)
@@ -172,7 +178,7 @@ if __name__ == '__main__':
     test_recall = []
     test_f1 = []
 
-    for i in trange(5, desc='Run Experiments'):
+    for i in trange(3, desc='Run Experiments'):
         model.reset_parameters()
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-4)
         best_loss = 1e6
@@ -180,6 +186,7 @@ if __name__ == '__main__':
         best_model = None
         patience = 0
 
+        save_path = f"best_single_model_{args.dataset}.pth"
         for epoch in range(args.epochs):
             loss = train()
             loss_val, f1_val_micro, f1_val_macro, precision_val, recall_val, f1_val_binary = val()
@@ -187,13 +194,17 @@ if __name__ == '__main__':
                 best_f1 = f1_val_macro
                 best_loss = loss_val
                 best_model = copy.deepcopy(model)
+                torch.save(model.state_dict(), save_path)
                 patience = 0
             else:
                 patience += 1
             if patience > args.patience:
-                print('========early_stop========')
+                print(f'========early_stop at epoch {epoch}========')
                 break
-        f1_test_micro, f1_test_macro, precision_test, recall_test, f1_test_binary = test(best_model)
+        
+        # Load the best model from the current experiment run
+        model.load_state_dict(torch.load(save_path))
+        f1_test_micro, f1_test_macro, precision_test, recall_test, f1_test_binary = test(model)
         print(
             'f1_test_micro:{:.4f}'.format(f1_test_micro),
             'f1_test_macro:{:.4f}'.format(f1_test_macro),
@@ -223,13 +234,13 @@ if __name__ == '__main__':
          str(round(np.mean(test_f1) * 100, 2)) + '±' + str(round(np.std(test_f1) * 100, 2))
          ]]
     result = pd.DataFrame(result_data,
-                          columns=['lr', 'hidden1', 'concat', 'loss_train',
+                          columns=['lr', 'hidden1', 'concat', 
                                    'micro_F1', 'macro_F1', 'precision', 'recall', 'f1'])
 
     save_path = (mkdir(
         f'./result/') +
                  f'Meta-IFD_{args.dataset}.csv')
-
+    
     if not os.path.exists(save_path):
         result.to_csv(save_path, index=False, mode='a')
     else:
