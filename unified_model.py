@@ -9,6 +9,24 @@ from torch_geometric.nn import MessagePassing
 from attention_conv import my_conv
 from model import TripletLoss
 
+class ExpertRules:
+    @staticmethod
+    def compute_ponzi_score(features):
+        # features shape: [N, 14]
+        score = (features[:, 0] > 15).float() * 0.4 + \
+                (features[:, 11] > 15).float() * 0.4 + \
+                (features[:, 6] <= -1).float() * 0.2
+        return score
+
+    @staticmethod
+    def compute_phish_score(features):
+        # features shape: [N, 14]
+        score = (features[:, 7] < 100).float() * 0.35 + \
+                (features[:, 8] < 100).float() * 0.35 + \
+                (features[:, 12] < 10).float() * 0.30
+        return score
+
+
 class UnifiedHMSL(MessagePassing):
     def __init__(self, hidden, out_channels, data, concat):
         super().__init__(aggr='sum')
@@ -48,7 +66,7 @@ class UnifiedHMSL(MessagePassing):
         self.head_ponzi.reset_parameters()
         self.head_phish.reset_parameters()
 
-    def forward(self, x_dict, edge_index):
+    def forward(self, x_dict, edge_index, raw_x_dict=None):
         CA_hidden_ls = []
         EOA_hidden_ls = []
 
@@ -84,7 +102,13 @@ class UnifiedHMSL(MessagePassing):
         
         loss_co = self.contrast_module(CA_hidden_ls, EOA_hidden_ls)
 
-        return out_ponzi, out_phish, loss_co
+        expert_ponzi = None
+        expert_phish = None
+        if raw_x_dict is not None:
+            expert_ponzi = ExpertRules.compute_ponzi_score(raw_x_dict['CA'])
+            expert_phish = ExpertRules.compute_phish_score(raw_x_dict['EOA'])
+
+        return out_ponzi, out_phish, loss_co, expert_ponzi, expert_phish
 
     def contrast_module(self, CA_hidden_ls, EOA_hidden_ls):
         anchors = []
