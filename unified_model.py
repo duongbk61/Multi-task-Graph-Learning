@@ -40,8 +40,8 @@ class UnifiedHMSL(MessagePassing):
             self.lin_dict_mean[node_type] = Linear(hidden, hidden)
         
         # Multi-task Heads
-        self.head_ponzi = Linear(hidden, out_channels) # For CA nodes
-        self.head_phish = Linear(hidden, out_channels) # For EOA nodes
+        self.head_ponzi = Linear(hidden + 1, out_channels) # For CA nodes
+        self.head_phish = Linear(hidden + 1, out_channels) # For EOA nodes
 
         self.k_lin = torch.nn.ModuleDict()
         self.q_lin = torch.nn.ModuleDict()
@@ -96,19 +96,25 @@ class UnifiedHMSL(MessagePassing):
         out_dict = self.conv(out_dict, edge_index)
         out_dict = self.conv1(out_dict, edge_index)
 
-        # Multi-task Outputs
-        out_ponzi = self.head_ponzi(out_dict['CA'])
-        out_phish = self.head_phish(out_dict['EOA'])
-        
-        loss_co = self.contrast_module(CA_hidden_ls, EOA_hidden_ls)
-
         expert_ponzi = None
         expert_phish = None
         if raw_x_dict is not None:
-            expert_ponzi = ExpertRules.compute_ponzi_score(raw_x_dict['CA'])
-            expert_phish = ExpertRules.compute_phish_score(raw_x_dict['EOA'])
+            expert_ponzi = ExpertRules.compute_ponzi_score(raw_x_dict['CA']).unsqueeze(1).to(out_dict['CA'].device)
+            expert_phish = ExpertRules.compute_phish_score(raw_x_dict['EOA']).unsqueeze(1).to(out_dict['EOA'].device)
+        else:
+            expert_ponzi = torch.zeros((out_dict['CA'].shape[0], 1), device=out_dict['CA'].device)
+            expert_phish = torch.zeros((out_dict['EOA'].shape[0], 1), device=out_dict['EOA'].device)
 
-        return out_ponzi, out_phish, loss_co, expert_ponzi, expert_phish
+        # Multi-task Outputs
+        ca_final = torch.cat([out_dict['CA'], expert_ponzi], dim=-1)
+        eoa_final = torch.cat([out_dict['EOA'], expert_phish], dim=-1)
+
+        out_ponzi = self.head_ponzi(ca_final)
+        out_phish = self.head_phish(eoa_final)
+        
+        loss_co = self.contrast_module(CA_hidden_ls, EOA_hidden_ls)
+
+        return out_ponzi, out_phish, loss_co
 
     def contrast_module(self, CA_hidden_ls, EOA_hidden_ls):
         anchors = []

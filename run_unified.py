@@ -68,23 +68,17 @@ def train_step(model, optimizer, ponzi_loader, phish_loader, args, device):
         
         # Forward pass
         # Ponzi Head task
-        out_ponzi_p, out_phish_p, loss_co_p, expert_ponzi_p, expert_phish_p = model(batch_ponzi.x_dict_new, batch_ponzi.edge_index_dict, raw_x_dict=batch_ponzi.x_dict)
+        out_ponzi_p, out_phish_p, loss_co_p = model(batch_ponzi.x_dict_new, batch_ponzi.edge_index_dict, raw_x_dict=batch_ponzi.x_dict)
         size_ponzi = batch_ponzi['CA'].batch_size
         loss_ponzi = F.cross_entropy(out_ponzi_p[:size_ponzi], batch_ponzi['CA'].y[:size_ponzi])
         
-        prob_ponzi_p = torch.softmax(out_ponzi_p[:size_ponzi], dim=1)[:, 1]
-        loss_expert_p = F.mse_loss(prob_ponzi_p, expert_ponzi_p[:size_ponzi])
-        
         # Phish Head task
-        out_ponzi_h, out_phish_h, loss_co_h, expert_ponzi_h, expert_phish_h = model(batch_phish.x_dict_new, batch_phish.edge_index_dict, raw_x_dict=batch_phish.x_dict)
+        out_ponzi_h, out_phish_h, loss_co_h = model(batch_phish.x_dict_new, batch_phish.edge_index_dict, raw_x_dict=batch_phish.x_dict)
         size_phish = batch_phish['EOA'].batch_size
         loss_phish = F.cross_entropy(out_phish_h[:size_phish], batch_phish['EOA'].y[:size_phish])
         
-        prob_phish_h = torch.softmax(out_phish_h[:size_phish], dim=1)[:, 1]
-        loss_expert_h = F.mse_loss(prob_phish_h, expert_phish_h[:size_phish])
-        
-        # Combined Loss (with expert guidance weight of 0.5)
-        loss = loss_ponzi + loss_phish + args.loss_train * (loss_co_p + loss_co_h) + 0.5 * (loss_expert_p + loss_expert_h)
+        # Combined Loss
+        loss = loss_ponzi + loss_phish + args.loss_train * (loss_co_p + loss_co_h)
         
         loss.backward()
         optimizer.step()
@@ -107,17 +101,13 @@ def evaluate(model, loader, target_node, task_type, args, device):
     for batch in loader:
         batch = get_augmented_data(batch.to(device), task_type, args, device)
         batch_size = batch[target_node].batch_size
-        out_ponzi, out_phish, loss_co, expert_ponzi, expert_phish = model(batch.x_dict_new, batch.edge_index_dict, raw_x_dict=batch.x_dict)
+        out_ponzi, out_phish, loss_co = model(batch.x_dict_new, batch.edge_index_dict, raw_x_dict=batch.x_dict)
         
         output = out_ponzi if target_node == 'CA' else out_phish
-        expert_out = expert_ponzi if target_node == 'CA' else expert_phish
         
         y = batch[target_node].y[:batch_size]
         
-        prob = torch.softmax(output[:batch_size], dim=1)[:, 1]
-        loss_expert = F.mse_loss(prob, expert_out[:batch_size])
-        
-        loss = F.cross_entropy(output[:batch_size], y) + args.loss_train * loss_co + 0.5 * loss_expert
+        loss = F.cross_entropy(output[:batch_size], y) + args.loss_train * loss_co
         total_loss += loss.item()
         total_examples += 1
         
