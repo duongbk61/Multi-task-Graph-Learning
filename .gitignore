@@ -9,3 +9,6 @@ tmp.py
 *.pkl
 pretrain_model/*
 model.py
+*.csv
+*.ipynb
+*.pth
