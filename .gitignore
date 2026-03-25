@@ -5,4 +5,7 @@ tmp.py
 *.pyc
 .idea/
 *.log
-pretrain_model/
+*.pth
+*.pkl
+pretrain_model/*
+model.py
