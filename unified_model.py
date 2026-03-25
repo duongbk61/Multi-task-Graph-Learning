@@ -48,8 +48,9 @@ class ExpertRules:
 
 
 class UnifiedHMSL(MessagePassing):
-    def __init__(self, hidden, out_channels, data, concat):
+    def __init__(self, hidden, out_channels, data, concat, expert_mode='feature'):
         super().__init__(aggr='sum')
+        self.expert_mode = expert_mode
         self.concat_num = concat
         self.loss_co = TripletLoss(margin=0.3)
 
@@ -60,8 +61,9 @@ class UnifiedHMSL(MessagePassing):
             self.lin_dict_mean[node_type] = Linear(hidden, hidden)
         
         # Multi-task Heads
-        self.head_ponzi = Linear(hidden + 1, out_channels) # For CA nodes
-        self.head_phish = Linear(hidden + 1, out_channels) # For EOA nodes
+        head_in = hidden + 1 if expert_mode == 'feature' else hidden
+        self.head_ponzi = Linear(head_in, out_channels) # For CA nodes
+        self.head_phish = Linear(head_in, out_channels) # For EOA nodes
 
         self.k_lin = torch.nn.ModuleDict()
         self.q_lin = torch.nn.ModuleDict()
@@ -118,7 +120,7 @@ class UnifiedHMSL(MessagePassing):
 
         expert_ponzi = None
         expert_phish = None
-        if raw_x_dict is not None:
+        if raw_x_dict is not None and self.expert_mode != 'none':
             expert_ponzi = ExpertRules.compute_ponzi_score(raw_x_dict['CA']).unsqueeze(1).to(out_dict['CA'].device)
             expert_phish = ExpertRules.compute_phish_score(raw_x_dict['EOA']).unsqueeze(1).to(out_dict['EOA'].device)
         else:
@@ -126,15 +128,19 @@ class UnifiedHMSL(MessagePassing):
             expert_phish = torch.zeros((out_dict['EOA'].shape[0], 1), device=out_dict['EOA'].device)
 
         # Multi-task Outputs
-        ca_final = torch.cat([out_dict['CA'], expert_ponzi], dim=-1)
-        eoa_final = torch.cat([out_dict['EOA'], expert_phish], dim=-1)
+        if self.expert_mode == 'feature':
+            ca_final = torch.cat([out_dict['CA'], expert_ponzi], dim=-1)
+            eoa_final = torch.cat([out_dict['EOA'], expert_phish], dim=-1)
+        else:
+            ca_final = out_dict['CA']
+            eoa_final = out_dict['EOA']
 
         out_ponzi = self.head_ponzi(ca_final)
         out_phish = self.head_phish(eoa_final)
         
         loss_co = self.contrast_module(CA_hidden_ls, EOA_hidden_ls)
 
-        return out_ponzi, out_phish, loss_co
+        return out_ponzi, out_phish, loss_co, expert_ponzi, expert_phish
 
     def contrast_module(self, CA_hidden_ls, EOA_hidden_ls):
         anchors = []

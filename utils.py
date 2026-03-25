@@ -26,6 +26,7 @@ def get_parser():
     parser.add_argument('--gpu', type=str, help='gpu id', default='0')
     parser.add_argument('--model', type=str, help='atten', default='easy_model')
     parser.add_argument('--loss_train', type=float, help='parameters of loss_train', default=0.1)
+    parser.add_argument('--expert_mode', type=str, choices=['loss', 'feature', 'none'], default='feature', help='Mode for expert knowledge injection.')
     parser.add_argument('--loss', type=str, default='CE')
     parser.add_argument('--batch_size', type=int, help='batch', default=512)
 
