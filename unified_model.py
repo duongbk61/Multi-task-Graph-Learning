@@ -13,37 +13,44 @@ class ExpertRules:
     @staticmethod
     def compute_ponzi_score(features):
         # features shape: [N, 14]
-        # Xét theo bảng: Call (Dim 0-6), Trans (Dim 7-13)
-        # Dim 0: Tổng giá trị gửi đi (Call)
-        # Dim 6: Tần suất nhận (Call)
-        # Dim 11: Số dư (Trans)
+        # Xét theo bảng Data Features:
+        # Dim 4: Call_Balance
+        # Dim 7: Trans_Total_Sent
+        # Dim 11: Trans_Balance
         
-        total_sent_call = features[:, 0]
-        freq_recv_call = features[:, 6]
-        balance_trans = features[:, 11]
+        call_balance = features[:, 4]
+        trans_total_sent = features[:, 7]
+        trans_balance = features[:, 11]
         
-        # Ponzi thường có tổng gửi đi lớn (trả lãi bùng nổ), và số dư rỗng hoặc bất thường
-        score = (total_sent_call > 15).float() * 0.4 + \
-                (balance_trans > 15).float() * 0.4 + \
-                (freq_recv_call <= 0).float() * 0.2
+        # Áp dụng bộ luật bóc tách trực tiếp từ Mô hình Cây (Decision Tree)
+        # Nhánh 1: CÓ chuyển tiền gốc rải rác (Trans_Total_Sent > 0)
+        # Nhánh 2: Số dư hợp đồng vắt kiệt (Call_Balance <= 3.5) HOẶC hút được rất nhiều (Trans_Balance > 269)
+        c1_active_trans = trans_total_sent > 0.0
+        c2_ponzi_pattern = (call_balance <= 3.5) | (trans_balance > 269.0)
+        
+        score = (c1_active_trans & c2_ponzi_pattern).float()
         return score
 
     @staticmethod
     def compute_phish_score(features):
-        # Nhóm đặc trưng Transaction (Dim 7-13)
-        # Dim 7: Tổng giá trị gửi đi (Trans)
-        # Dim 8: Tổng giá trị nhận về (Trans)
-        # Dim 12: Tần suất khởi tạo/gửi đi (Trans)
+        # Nhóm đặc trưng dựa trên Decision Tree từ tập dữ liệu Phishing mới chuẩn xác:
+        # Cột chiếm 93.88% sức mạnh phân tách: Trans_Total_Recv (Dim 8)
+        # Các cột hỗ trợ phụ: Trans_Total_Sent (Dim 7) và Call_Total_Sent (Dim 0)
         
-        total_sent_trans = features[:, 7]
-        total_recv_trans = features[:, 8]
-        freq_sent_trans = features[:, 12]
+        trans_total_recv = features[:, 8]
+        trans_total_sent = features[:, 7]
+        call_total_sent = features[:, 0]
         
-        # Phishing thường là dạng tài khoản "Burner" (Tuổi thọ giao dịch siêu ngắn)
-        # Tần suất rất thấp và Tổng giá trị giao dịch rất nhỏ do bị block hoặc tẩu tán nhanh
-        score = (total_sent_trans < 100).float() * 0.35 + \
-                (total_recv_trans < 100).float() * 0.35 + \
-                (freq_sent_trans < 10).float() * 0.30
+        # Luật Phân tách Cây Phishing (Vô cùng sắc bén - Đạt f1 0.96)
+        # Phishing là những burner account:
+        # - Tổng nhận trực tiếp rất thấp (<= 102.04)
+        # - Tuy nhiên tổng gửi ra không ở ngưỡng đóng băng (> -10.0)
+        # - Lệnh call khởi tạo không phải account chết (> -12.75)
+        c1_low_deposit = trans_total_recv <= 102.04
+        c2_active_sent = trans_total_sent > -10.0
+        c3_active_call = call_total_sent > -12.75
+        
+        score = (c1_low_deposit & c2_active_sent & c3_active_call).float()
         return score
 
 
