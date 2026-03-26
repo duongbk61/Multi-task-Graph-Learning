@@ -14,21 +14,27 @@ class ExpertRules:
     def compute_ponzi_score(features):
         # features shape: [N, 14]
         # Xét theo bảng Data Features:
+        # Dim 0: Call_Total_Sent
         # Dim 4: Call_Balance
         # Dim 7: Trans_Total_Sent
         # Dim 11: Trans_Balance
         
+        call_total_sent = features[:, 0]
         call_balance = features[:, 4]
         trans_total_sent = features[:, 7]
         trans_balance = features[:, 11]
         
-        # Áp dụng bộ luật bóc tách trực tiếp từ Mô hình Cây (Decision Tree)
-        # Nhánh 1: CÓ chuyển tiền gốc rải rác (Trans_Total_Sent > 0)
-        # Nhánh 2: Số dư hợp đồng vắt kiệt (Call_Balance <= 3.5) HOẶC hút được rất nhiều (Trans_Balance > 269)
+        # Áp dụng bộ luật bóc tách trực tiếp (Decision Tree + Error Analysis)
+        # Nhánh 1: CÓ chuyển tiền gốc rải rác và thỏa mãn balance (luật cũ)
         c1_active_trans = trans_total_sent > 0.0
         c2_ponzi_pattern = (call_balance <= 3.5) | (trans_balance > 269.0)
+        branch_1 = c1_active_trans & c2_ponzi_pattern
         
-        score = (c1_active_trans & c2_ponzi_pattern).float()
+        # Nhánh 2: KHÔNG có giao dịch gửi thông thường, nhưng gọi contract RẤT LỚN (để hút/chuyển tiền)
+        # Khức phục 8 case FNs đều có Trans_Total <= 0 & Call_Total cực cao (~45 mean).
+        branch_2 = (trans_total_sent <= 0.0) & (call_total_sent > 10.0)
+        
+        score = (branch_1 | branch_2).float()
         return score
 
     @staticmethod

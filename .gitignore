@@ -12,3 +12,4 @@ model.py
 *.csv
 *.ipynb
 *.pth
+*analysis.py
