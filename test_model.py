@@ -51,20 +51,24 @@ def evaluate_model(model, loader, target_node, task_type, args, device, is_unifi
     model.eval()
     all_preds = []
     all_labels = []
-    predict_fn = lambda output: output.max(1, keepdim=True)[1].detach().cpu()
+    predict_fn = lambda output: output.max(1)[1].detach().cpu()
 
     for batch in loader:
         batch = get_augmented_data(batch.to(device), task_type, args, device)
         batch_size = batch[target_node].batch_size
         
         if is_unified:
-            out_ponzi, out_phish, _ = model(batch.x_dict_new, batch.edge_index_dict)
+            outputs = model(batch.x_dict_new, batch.edge_index_dict, raw_x_dict=batch.x_dict)
+            if len(outputs) == 5:
+                out_ponzi, out_phish, _, _, _ = outputs
+            else:
+                out_ponzi, out_phish, _ = outputs
             output = out_ponzi if target_node == 'CA' else out_phish
         else:
             output, _ = model(batch.x_dict_new, batch.edge_index_dict)
             
         y = batch[target_node].y[:batch_size]
-        preds = predict_fn(F.log_softmax(output[:batch_size], dim=1)).numpy()
+        preds = predict_fn(F.softmax(output[:batch_size], dim=1)).numpy()
         labels = y.detach().cpu().numpy()
         all_preds.extend(preds)
         all_labels.extend(labels)
@@ -153,5 +157,68 @@ def run_comparison():
         print(f"{metric_name.upper():<10} | {p_s:<10.4f} | {p_u:<10.4f} | {h_s:<10.4f} | {h_u:<10.4f}")
     print("="*60)
 
+def test_expert_models():
+    args = get_parser()
+    device = torch.device(f'cuda:{args.gpu}' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
+
+    # 1. Load Data
+    print("Loading datasets...")
+    path_ponzi = osp.join(osp.dirname(osp.realpath(__file__)), './data/Ponzi/')
+    data_ponzi = Ponzi(path_ponzi)[0]
+    
+    path_phish = osp.join(osp.dirname(osp.realpath(__file__)), './data/Phish/')
+    data_phish = Phish(path_phish)[0]
+
+    kwargs = {'batch_size': args.batch_size}
+    test_loader_ponzi = NeighborLoader(data_ponzi, num_neighbors=[100] * 2, shuffle=False,
+                                        input_nodes=('CA', data_ponzi['CA'].test_mask), **kwargs)
+    test_loader_phish = NeighborLoader(data_phish, num_neighbors=[100] * 2, shuffle=False,
+                                        input_nodes=('EOA', data_phish['EOA'].test_mask), **kwargs)
+
+    expert_modes = ['none', 'loss', 'feature']
+    results = {}
+
+    print("\n--- Testing Unified Models with Expert Modes ---")
+    for mode in expert_modes:
+        # Default save path inside run_unified.py usually is best_unified_model.pth
+        # Assume user renames them, or we fallback to the matching model naming convention.
+        model_path = f"best_unified_model_{mode}.pth"
+        if not osp.exists(model_path):
+            # Fallback if there's only one model
+            model_path = "best_unified_model.pth"
+            
+        if osp.exists(model_path):
+            print(f"\nEvaluating mode [{mode}] using weights from {model_path} ...")
+            model_u = UnifiedHMSL(hidden=args.hidden, out_channels=2, data=data_ponzi, concat=args.concat, expert_mode=mode).to(device)
+            try:
+                model_u.load_state_dict(torch.load(model_path, map_location=device))
+            except RuntimeError as e:
+                print(f"  [!] Skipping mode '{mode}' due to architecture mismatch.")
+                continue
+                
+            m_p = evaluate_model(model_u, test_loader_ponzi, 'CA', 'Ponzi', args, device, is_unified=True)
+            m_h = evaluate_model(model_u, test_loader_phish, 'EOA', 'Phish', args, device, is_unified=True)
+            
+            results[mode] = {'Ponzi': m_p, 'Phish': m_h}
+            print(f"  [{mode.upper()}] Ponzi - F1: {m_p['f1']:.4f}, Precision: {m_p['precision']:.4f}, Recall: {m_p['recall']:.4f}")
+            print(f"  [{mode.upper()}] Phish - F1: {m_h['f1']:.4f}, Precision: {m_h['precision']:.4f}, Recall: {m_h['recall']:.4f}")
+        else:
+            print(f"Model file for mode {mode} not found.")
+
+    if results:
+        print("\n" + "="*80)
+        print(f"{'Expert Mode':<15} | {'Ponzi F1':<12} | {'Ponzi Prec':<12} | {'Ponzi Rec':<12} | {'Phish F1':<12}")
+        print("-" * 80)
+        for mode in results:
+            p_res = results[mode]['Ponzi']
+            h_res = results[mode]['Phish']
+            print(f"{mode.upper():<15} | {p_res['f1']:<12.4f} | {p_res['precision']:<12.4f} | {p_res['recall']:<12.4f} | {h_res['f1']:<12.4f}")
+        print("="*80)
+
 if __name__ == '__main__':
-    run_comparison()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == '--comparison':
+        run_comparison()
+    else:
+        test_expert_models()

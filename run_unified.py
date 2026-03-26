@@ -178,7 +178,7 @@ if __name__ == '__main__':
     best_val_f1_sum = 0
     best_model_state = None
 
-    save_path = "best_unified_model.pth"
+    save_path = f"best_unified_model_{args.expert_mode}.pth"
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-4)
 
