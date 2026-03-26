@@ -39,24 +39,25 @@ class ExpertRules:
 
     @staticmethod
     def compute_phish_score(features):
-        # Nhóm đặc trưng dựa trên Decision Tree từ tập dữ liệu Phishing mới chuẩn xác:
-        # Cột chiếm 93.88% sức mạnh phân tách: Trans_Total_Recv (Dim 8)
-        # Các cột hỗ trợ phụ: Trans_Total_Sent (Dim 7) và Call_Total_Sent (Dim 0)
-        
         trans_total_recv = features[:, 8]
         trans_total_sent = features[:, 7]
         call_total_sent = features[:, 0]
         
-        # Luật Phân tách Cây Phishing (Vô cùng sắc bén - Đạt f1 0.96)
-        # Phishing là những burner account:
-        # - Tổng nhận trực tiếp rất thấp (<= 102.04)
-        # - Tuy nhiên tổng gửi ra không ở ngưỡng đóng băng (> -10.0)
-        # - Lệnh call khởi tạo không phải account chết (> -12.75)
+        # Nhánh 1: Luật Burner Account (Phishing nhận ít rồi chuồn)
         c1_low_deposit = trans_total_recv <= 102.04
         c2_active_sent = trans_total_sent > -10.0
         c3_active_call = call_total_sent > -12.75
+        branch_1 = c1_low_deposit & c2_active_sent & c3_active_call
         
-        score = (c1_low_deposit & c2_active_sent & c3_active_call).float()
+        # Nhánh 2: Nhóm "Whale Phishing" (cá mập) - chuyên lừa đảo nhận rất nhiều tiền 
+        # Khắc phục FNs: trans_total_recv rất cao (>150), nhưng không hề có các lệnh call (dim 0, 2, 6 == 0)
+        call_balance = features[:, 2]
+        feature_6 = features[:, 6]
+        c_whale = trans_total_recv > 150.0
+        c_no_call = (call_total_sent == 0.0) & (call_balance == 0.0) & (feature_6 == 0.0)
+        branch_2 = c_whale & c_no_call
+        
+        score = (branch_1 | branch_2).float()
         return score
 
 
