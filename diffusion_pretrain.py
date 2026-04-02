@@ -42,10 +42,8 @@ def generated_generator_sixedges_ddpm(args, data, device, target_node):
     features_c = torch.tensor(features_c, dtype=torch.float32)
     features_e_type = torch.tensor(features_e_type, dtype=torch.float32)
     
-    diffusion_dataset = TensorDataset(features_x, features_c, features_e_type)
-    diffusion_dataset_sampler = RandomSampler(diffusion_dataset)
-    diffusion_dataset_dataloader = DataLoader(diffusion_dataset, sampler=diffusion_dataset_sampler, batch_size=args.batch_size)
-
+    num_samples = features_x.size(0)
+    
     # Pretrain Diffusion
     x_dim = data[target_node].x.shape[1]
     e_dim = len(data.edge_types)
@@ -55,14 +53,28 @@ def generated_generator_sixedges_ddpm(args, data, device, target_node):
     ddpm_optimizer = optim.Adam(ddpm.parameters(), lr=0.001)
     ddpm.to(device)
 
-    for _ in trange(args.pretrain_epochs, desc='Run DDPM Train'):
-        for _, (x, c, e) in enumerate(diffusion_dataset_dataloader):
-            ddpm.train()
-            x, c, e = x.to(device), c.to(device), e.to(device)
-            loss = ddpm(x, c, e)
-            ddpm_optimizer.zero_grad()
-            loss.backward()
-            ddpm_optimizer.step()
+    # Đưa mọi batch indexing về GPU slice nếu có thể để max speed
+    # Nếu RAM lớn thì để ở CPU và copy qua GPU từng batch
+    for epoch in range(args.pretrain_epochs):
+        ddpm.train()
+        indices = torch.randperm(num_samples)
+        total_loss = 0
+        
+        # tqdm inner loop thay vì outer loop để bạn nhìn thấy % chạy nhanh như thế nào
+        with trange(0, num_samples, args.batch_size, desc=f'DDPM Epoch {epoch+1}/{args.pretrain_epochs}') as t:
+            for i in t:
+                batch_idx = indices[i:i + args.batch_size]
+                x = features_x[batch_idx].to(device)
+                c = features_c[batch_idx].to(device)
+                e = features_e_type[batch_idx].to(device)
+                
+                loss = ddpm(x, c, e)
+                ddpm_optimizer.zero_grad()
+                loss.backward()
+                ddpm_optimizer.step()
+                
+                total_loss += loss.item()
+                t.set_postfix({'loss': loss.item()})
             
     return ddpm
 
