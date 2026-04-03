@@ -10,61 +10,81 @@ from utils import get_parser, one_hot, mkdir, feature_tensor_normalize
 from torch_geometric.loader import NeighborLoader
 from dataset import Ponzi, Phish
 from unified_model import UnifiedHMSL
+from icvae import ICVAE
+from diffusion import Diffuser
 from sklearn.metrics import f1_score, precision_score, recall_score
 import warnings
 warnings.filterwarnings("ignore")
 
-def get_augmented_features(data, dataset_name, device):
+def get_augmented_features(data, aug_model, device):
     CA_ls = []
     EOA_ls = []
-    cvae_model = torch.load(
-        f"./pretrain_model/icvae_{dataset_name}.pkl",
-        map_location=device)
+    
     e_type_index = {}
     for index, e in enumerate(data.edge_types):
         e_type_index[e] = index
-    for i in range(6):
+    for i in range(len(data.edge_types)):
         src_node = data.edge_types[i][0]
         edge_onehot = one_hot(torch.LongTensor([e_type_index[data.edge_types[i]]]), len(e_type_index)).repeat(
             data[f'{src_node}'].num_nodes, 1).to(device)
-        z = torch.randn([data[f'{src_node}'].num_nodes, cvae_model.latent_size]).to(device)
-        augmented_features = cvae_model.inference(z, data[f'{src_node}'].x, edge_onehot).detach()
+        
+        # z will be ignored by Diffuser.inference
+        z = torch.randn([data[f'{src_node}'].num_nodes, aug_model.latent_size]).to(device)
+        augmented_features = aug_model.inference(z, data[f'{src_node}'].x, edge_onehot).detach()
         augmented_features = feature_tensor_normalize(augmented_features).detach()
         if src_node == 'CA':
             CA_ls.append(augmented_features)
         else:
             EOA_ls.append(augmented_features)
-    del cvae_model
     return CA_ls, EOA_ls
 
-def get_augmented_data(data, dataset_name, args, device):
-    data.x_dict_new = data.x_dict
+def get_augmented_data(data, aug_model, args, device):
+    data.x_dict_new = copy.deepcopy(data.x_dict)
+    # data.x_dict_new already contains 'EOA' and 'CA' as tensors, but we need lists for stacking
+    eoa_orig = data.x_dict['EOA']
+    ca_orig = data.x_dict['CA']
+    
     data.x_dict_new['EOA'] = []
     data.x_dict_new['CA'] = []
+    
     for _ in range(args.concat):
-        CA_x, EOA_x = get_augmented_features(data, dataset_name, device)
-        data.x_dict_new['EOA'].append(EOA_x)
-        data.x_dict_new['EOA'][_].append(data.x_dict['EOA'])
-        data.x_dict_new['CA'].append(CA_x)
-        data.x_dict_new['CA'][_].append(data.x_dict['CA'])
-        data.x_dict_new['CA'][_] = torch.stack(data.x_dict_new["CA"][_])
-        data.x_dict_new['EOA'][_] = torch.stack(data.x_dict_new["EOA"][_])
+        CA_x, EOA_x = get_augmented_features(data, aug_model, device)
+        
+        # Add original as well? Existing code does:
+        # data.x_dict_new['EOA'][_].append(data.x_dict['EOA'])
+        # Wait, the existing code:
+        # data.x_dict_new['EOA'].append(EOA_x)
+        # data.x_dict_new['EOA'][_].append(data.x_dict['EOA'])
+        # This means EOA_x (which is a list of features from different edge types) gets another list?
+        # Actually in existing code line 46: EOA_x is a list from get_augmented_features.
+        
+        # Let's see existing code:
+        # CA_x, EOA_x = get_augmented_features(...) # returns lists
+        # data.x_dict_new['EOA'].append(EOA_x) # EOA_x is a list
+        # data.x_dict_new['EOA'][_].append(data.x_dict['EOA']) # append original tensor to that list
+        # data.x_dict_new['EOA'][_] = torch.stack(...) # stack that list
+        
+        # My updated version should maintain this logic but clean it up
+        current_eoa_list = EOA_x + [eoa_orig]
+        current_ca_list = CA_x + [ca_orig]
+        
+        data.x_dict_new['EOA'].append(torch.stack(current_eoa_list))
+        data.x_dict_new['CA'].append(torch.stack(current_ca_list))
+        
     return data
 
-def train_step(model, optimizer, ponzi_loader, phish_loader, args, device):
+def train_step(model, optimizer, ponzi_loader, phish_loader, ponzi_aug_model, phish_aug_model, args, device):
     model.train()
     total_loss = 0
     num_batches = 0
     
     # Iterate through both loaders
-    # For simplicity in this version, we alternate or zip them.
-    # If they have different lengths, we cycle the shorter one or stop at the shortest.
     for batch_ponzi, batch_phish in zip(ponzi_loader, phish_loader):
         optimizer.zero_grad()
         
         # Move to device and augment
-        batch_ponzi = get_augmented_data(batch_ponzi.to(device), 'Ponzi', args, device)
-        batch_phish = get_augmented_data(batch_phish.to(device), 'Phish', args, device)
+        batch_ponzi = get_augmented_data(batch_ponzi.to(device), ponzi_aug_model, args, device)
+        batch_phish = get_augmented_data(batch_phish.to(device), phish_aug_model, args, device)
         
         # Forward pass
         # Ponzi Head task
@@ -98,7 +118,7 @@ def train_step(model, optimizer, ponzi_loader, phish_loader, args, device):
     return total_loss / num_batches if num_batches > 0 else 0
 
 @torch.no_grad()
-def evaluate(model, loader, target_node, task_type, args, device):
+def evaluate(model, loader, aug_model, target_node, task_type, args, device):
     model.eval()
     all_preds = []
     all_labels = []
@@ -108,7 +128,7 @@ def evaluate(model, loader, target_node, task_type, args, device):
     predict_fn = lambda output: output.max(1, keepdim=True)[1].detach().cpu()
 
     for batch in loader:
-        batch = get_augmented_data(batch.to(device), task_type, args, device)
+        batch = get_augmented_data(batch.to(device), aug_model, args, device)
         batch_size = batch[target_node].batch_size
         out_ponzi, out_phish, loss_co, expert_ponzi, expert_phish = model(batch.x_dict_new, batch.edge_index_dict, raw_x_dict=batch.x_dict)
         
@@ -166,6 +186,11 @@ if __name__ == '__main__':
                                         input_nodes=('CA', data_ponzi['CA'].test_mask), **kwargs)
     test_loader_phish = NeighborLoader(data_phish, num_neighbors=[100] * 2, shuffle=False,
                                         input_nodes=('EOA', data_phish['EOA'].test_mask), **kwargs)
+    # Load Augmentation Models
+    print(f"Loading {args.aug_method} models...")
+    ponzi_aug_model = torch.load(f"./pretrain_model/{args.aug_method}_Ponzi.pkl", map_location=device)
+    phish_aug_model = torch.load(f"./pretrain_model/{args.aug_method}_Phish.pkl", map_location=device)
+    
     # Note: Using metadata from one dataset (assuming types are similar)
     model = UnifiedHMSL(hidden=args.hidden, out_channels=2, data=data_ponzi, concat=args.concat, expert_mode=args.expert_mode)
     model = model.to(device)
@@ -178,15 +203,15 @@ if __name__ == '__main__':
     best_val_f1_sum = 0
     best_model_state = None
 
-    save_path = f"best_unified_model_{args.expert_mode}.pth"
+    save_path = f"best_unified_model_{args.expert_mode}_{args.aug_method}.pth"
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=5e-4)
 
     for epoch in range(args.epochs):
-        loss_train = train_step(model, optimizer, train_loader_ponzi, train_loader_phish, args, device)
+        loss_train = train_step(model, optimizer, train_loader_ponzi, train_loader_phish, ponzi_aug_model, phish_aug_model, args, device)
         
-        loss_val_ponzi, f1_ponzi = evaluate(model, val_loader_ponzi, 'CA', 'Ponzi', args, device)
-        loss_val_phish, f1_phish = evaluate(model, val_loader_phish, 'EOA', 'Phish', args, device)
+        loss_val_ponzi, f1_ponzi = evaluate(model, val_loader_ponzi, ponzi_aug_model, 'CA', 'Ponzi', args, device)
+        loss_val_phish, f1_phish = evaluate(model, val_loader_phish, phish_aug_model, 'EOA', 'Phish', args, device)
         
         # Lưu model nếu tổng F1 của cả 2 task là tốt nhất (đảm bảo cân bằng 2 task)
         current_val_f1 = f1_ponzi + f1_phish
@@ -202,8 +227,8 @@ if __name__ == '__main__':
     # --- ĐÁNH GIÁ CUỐI CÙNG TRÊN TẬP TEST ---
     print("\n--- Final Evaluation on TEST SET ---")
     model.load_state_dict(best_model_state)
-    loss_test_ponzi, f1_test_ponzi = evaluate(model, test_loader_ponzi, 'CA', 'Ponzi', args, device)
-    loss_test_phish, f1_test_phish = evaluate(model, test_loader_phish, 'EOA', 'Phish', args, device)
+    loss_test_ponzi, f1_test_ponzi = evaluate(model, test_loader_ponzi, ponzi_aug_model, 'CA', 'Ponzi', args, device)
+    loss_test_phish, f1_test_phish = evaluate(model, test_loader_phish, phish_aug_model, 'EOA', 'Phish', args, device)
     print(f"Test Ponzi F1: {f1_test_ponzi:.4f}")
     print(f"Test Phish F1: {f1_test_phish:.4f}")
     
