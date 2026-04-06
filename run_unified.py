@@ -157,6 +157,12 @@ def evaluate(model, loader, aug_model, target_node, task_type, args, device):
 
 if __name__ == '__main__':
     args = get_parser()
+    print("\n" + "="*50)
+    print("      CONFIGURATIONS")
+    print("-" * 50)
+    for arg in vars(args):
+        print(f" {arg:<15} : {getattr(args, arg)}")
+    print("="*50 + "\n")
     device = torch.device(f'cuda:{args.gpu}' if torch.cuda.is_available() else 'cpu')
     
     # Load Datasets
