@@ -29,7 +29,7 @@ def get_parser():
     parser.add_argument('--expert_mode', type=str, choices=['loss', 'feature', 'none'], default='loss', help='Mode for expert knowledge injection.')
     parser.add_argument('--loss', type=str, default='CE')
     parser.add_argument('--batch_size', type=int, help='batch', default=512)
-    parser.add_argument('--aug_method', type=str, choices=['cvae', 'diffusion'], default='diffusion', help='Method for data augmentation.')
+    parser.add_argument('--aug_method', type=str, choices=['cvae'], default='cvae', help='Method for data augmentation.')
 
     return parser.parse_args()
 

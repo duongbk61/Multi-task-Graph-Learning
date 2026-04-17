@@ -11,7 +11,6 @@ from torch_geometric.loader import NeighborLoader
 from dataset import Ponzi, Phish
 from unified_model import UnifiedHMSL
 from icvae import ICVAE
-from diffusion import Diffuser
 from sklearn.metrics import f1_score, precision_score, recall_score
 import warnings
 warnings.filterwarnings("ignore")
@@ -28,7 +27,6 @@ def get_augmented_features(data, aug_model, device):
         edge_onehot = one_hot(torch.LongTensor([e_type_index[data.edge_types[i]]]), len(e_type_index)).repeat(
             data[f'{src_node}'].num_nodes, 1).to(device)
         
-        # z will be ignored by Diffuser.inference
         z = torch.randn([data[f'{src_node}'].num_nodes, aug_model.latent_size]).to(device)
         augmented_features = aug_model.inference(z, data[f'{src_node}'].x, edge_onehot).detach()
         augmented_features = feature_tensor_normalize(augmented_features).detach()
