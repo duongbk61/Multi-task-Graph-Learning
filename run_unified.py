@@ -203,9 +203,10 @@ if __name__ == '__main__':
     
     best_ponzi_f1 = 0
     best_phish_f1 = 0
-    
+
     best_val_f1_sum = 0
     best_model_state = None
+    patience_counter = 0
 
     save_path = f"best_unified_model_{args.expert_mode}_{args.aug_method}.pth"
 
@@ -213,11 +214,10 @@ if __name__ == '__main__':
 
     for epoch in range(args.epochs):
         loss_train = train_step(model, optimizer, train_loader_ponzi, train_loader_phish, ponzi_aug_model, phish_aug_model, args, device)
-        
+
         loss_val_ponzi, f1_ponzi = evaluate(model, val_loader_ponzi, ponzi_aug_model, 'CA', 'Ponzi', args, device)
         loss_val_phish, f1_phish = evaluate(model, val_loader_phish, phish_aug_model, 'EOA', 'Phish', args, device)
-        
-        # Lưu model nếu tổng F1 của cả 2 task là tốt nhất (đảm bảo cân bằng 2 task)
+
         current_val_f1 = f1_ponzi + f1_phish
         if current_val_f1 > best_val_f1_sum:
             best_val_f1_sum = current_val_f1
@@ -226,7 +226,14 @@ if __name__ == '__main__':
             best_model_state = copy.deepcopy(model.state_dict())
             best_ponzi_f1 = f1_ponzi
             best_phish_f1 = f1_phish
+            patience_counter = 0
             print(f"--- Best Model Updated at Epoch {epoch} ---")
+        else:
+            patience_counter += 1
+            if patience_counter >= args.patience:
+                print(f"--- Early stopping at Epoch {epoch} (no improvement for {args.patience} epochs) ---")
+                break
+
         print(f"Epoch {epoch:03d} | Loss: {loss_train:.4f} | Ponzi Val F1: {f1_ponzi:.4f} | Phish Val F1: {f1_phish:.4f}")
     # --- ĐÁNH GIÁ CUỐI CÙNG TRÊN TẬP TEST ---
     print("\n--- Final Evaluation on TEST SET ---")

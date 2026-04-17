@@ -59,7 +59,7 @@ class CrossPathAttention(nn.Module):
     h_cont learns what it missed from the generative path.
     The residual connection preserves each path's own signal.
     """
-    def __init__(self, hidden):
+    def __init__(self, hidden, dropout=0.3):
         super().__init__()
         self.scale = hidden ** 0.5
         # h_gen attending to h_cont
@@ -70,19 +70,20 @@ class CrossPathAttention(nn.Module):
         self.q_cont = nn.Linear(hidden, hidden)
         self.k_gen  = nn.Linear(hidden, hidden)
         self.v_gen  = nn.Linear(hidden, hidden)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, h_gen, h_cont):
         # h_gen queries h_cont
         alpha_gc = torch.sigmoid(
             (self.q_gen(h_gen) * self.k_cont(h_cont)).sum(dim=-1, keepdim=True) / self.scale
         )
-        h_gen_prime = h_gen + alpha_gc * self.v_cont(h_cont)
+        h_gen_prime = h_gen + alpha_gc * self.dropout(self.v_cont(h_cont))
 
         # h_cont queries h_gen
         alpha_cg = torch.sigmoid(
             (self.q_cont(h_cont) * self.k_gen(h_gen)).sum(dim=-1, keepdim=True) / self.scale
         )
-        h_cont_prime = h_cont + alpha_cg * self.v_gen(h_gen)
+        h_cont_prime = h_cont + alpha_cg * self.dropout(self.v_gen(h_gen))
 
         return h_gen_prime, h_cont_prime
 
@@ -101,13 +102,14 @@ class TaskGate(nn.Module):
     alpha = sigmoid(MLP(raw_x))
     h_fused = alpha * h_gen' + (1 - alpha) * h_cont'
     """
-    def __init__(self, hidden):
+    def __init__(self, hidden, dropout=0.3):
         super().__init__()
         self.fc1 = Linear(-1, hidden // 2)
         self.fc2 = nn.Linear(hidden // 2, 1)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, raw_x, h_gen_prime, h_cont_prime):
-        alpha = torch.sigmoid(self.fc2(F.relu(self.fc1(raw_x))))  # [N, 1]
+        alpha = torch.sigmoid(self.fc2(self.dropout(F.relu(self.fc1(raw_x)))))  # [N, 1]
         return alpha * h_gen_prime + (1 - alpha) * h_cont_prime
 
     def reset_parameters(self):
