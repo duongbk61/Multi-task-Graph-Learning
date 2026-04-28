@@ -15,10 +15,10 @@ def get_parser():
     parser.add_argument('--pretrain_epochs', type=int, default=3, help='Number of epochs to train.')
     # main
     parser.add_argument("--concat", type=int, default=3)
-    parser.add_argument("--patience", type=int, default=50)
+    parser.add_argument("--patience", type=int, default=100)
     parser.add_argument('--runs', type=int, default=5, help='The number of experiments.')
     parser.add_argument('--dataset', default='Ponzi', help='Dataset string.')
-    parser.add_argument('--seed', type=int, default=12, help='Random seed.')
+    parser.add_argument('--seed', type=int, default=14, help='Random seed.')
     parser.add_argument('--epochs', type=int, default=1000, help='Number of epochs to train.')
     parser.add_argument('--lr', type=float, default=0.001, help='Initial learning rate.')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).')
