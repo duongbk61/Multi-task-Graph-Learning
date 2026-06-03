@@ -9,6 +9,17 @@ Master thesis: Ethereum fraud detection (Ponzi + Phishing) using unified multi-t
 - Key components: `CrossPathAttention` + `TaskGate` + `ExpertRules` + `TripletLoss`
 - Custom heterogeneous conv in [attention_conv.py](attention_conv.py): `my_conv` (sum aggregation with skip connections)
 
+### Điểm khác biệt so với repo gốc (Task Unification)
+Repo gốc train **hai model riêng biệt** — một cho Ponzi, một cho Phishing — không có shared representation hay joint optimization.
+
+Meta-IFD hợp nhất thành **một model duy nhất** với:
+- **Shared GNN backbone**: cùng `my_conv` layers xử lý cả CA và EOA nodes
+- **Dual classification heads**: `head_ponzi` (CA) + `head_phish` (EOA) trên cùng embedding space
+- **Joint training loop** ([run_unified.py:80](run_unified.py)): `zip(ponzi_loader, phish_loader)` — mỗi batch co-train cả hai task
+- **Combined loss** ([run_unified.py:99](run_unified.py)): `loss = loss_ponzi + loss_phish + λ·loss_contrastive`
+- **Joint model selection**: best model theo `f1_ponzi + f1_phish` thay vì chọn riêng từng task
+- **Cross-task contrastive**: `TripletLoss` áp dụng đồng thời trên cả CA và EOA embeddings (`contrast_module`)
+
 ## Train command
 ```
 python run_unified.py --expert_mode feature --aug_method cvae --hidden 128 --epochs 1000 --lr 0.001 --batch_size 512 --gpu 0
@@ -18,11 +29,17 @@ python run_unified.py --expert_mode feature --aug_method cvae --hidden 128 --epo
 
 ## Research Iterations
 
+### Phase 0 — Repo gốc (Baseline, trước Dec 2024)
+- Hai model hoàn toàn độc lập: một cho Ponzi (CA nodes), một cho Phishing (EOA nodes)
+- Train riêng, evaluate riêng, không có shared representation
+- Đây là baseline để so sánh hiệu quả của task unification
+
 ### Phase 1 — Base Unified Model (Dec 2024)
-- Khởi tạo kiến trúc multi-task GNN trên đồ thị dị cấu (heterogeneous graph)
+- **Hợp nhất hai task**: thay thế 2 model độc lập bằng `UnifiedHMSL` duy nhất với dual heads
+- Joint training loop: co-train cả Ponzi và Phishing trong cùng một vòng lặp
 - CVAE làm augmentation: sinh ra nhiều view ngẫu nhiên từ phân phối latent
 - Multi-view pooling: mean over stochastic views, hai đầu phân loại riêng biệt (Ponzi / Phishing)
-- TripletLoss để học embedding phân biệt class
+- TripletLoss để học embedding phân biệt class, áp dụng đồng thời cho cả CA và EOA
 
 ### Phase 2 — Expert Knowledge Integration (Mar 2026)
 - **Knowledge-Guided Loss**: inject luật chuyên gia vào hàm loss (mode `loss`) thông qua MSE giữa output và expert score
