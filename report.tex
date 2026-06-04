@@ -643,18 +643,32 @@ hyperparameter \texttt{expert\_mode}:
 
 \subsection{Contrastive Self-Supervision via Triplet Loss}
 
-The $K$ stochastic ICVAE views also serve as positive and negative
-samples for contrastive self-supervision.  For each node type we
-construct triplets from the augmented embedding list
-$\{\mathbf{z}^{(1)},\mathbf{z}^{(2)},\mathbf{z}^{(3)}\}$ by
-designating:
+The ICVAE generates one augmented feature view \emph{per
+meta-interaction type}: $\mathbf{z}^{(1)}$ is conditioned on
+\emph{call}-type meta-interactions ($r_{\mathrm{call}}$), while
+$\mathbf{z}^{(2)}$ and $\mathbf{z}^{(3)}$ are conditioned on two
+distinct \emph{transfer}-type meta-interactions
+($r_{\mathrm{trans}}^{(1)}$ and $r_{\mathrm{trans}}^{(2)}$).
+
+From a domain perspective, call interactions and transfer interactions
+reflect fundamentally different account behaviours on Ethereum:
+a contract call represents programmatic function invocation, whereas
+a value transfer represents a direct asset movement.
+Consequently, the representations derived from the two transfer-type
+views, $\mathbf{z}^{(2)}$ and $\mathbf{z}^{(3)}$, should be more
+similar to each other than to the call-type view $\mathbf{z}^{(1)}$.
+
+Based on this semantic principle~\cite{paper_baseline_2408.00641},
+for each node type we construct a triplet:
 \begin{equation}
   \mathbf{a} = \mathbf{z}^{(2)},\quad
   \mathbf{p} = \mathbf{z}^{(3)},\quad
-  \mathbf{n} = \mathbf{z}^{(1)}.
+  \mathbf{n} = \mathbf{z}^{(1)},
 \end{equation}
-The triplet contrastive loss (with self-attention aggregation over the
-embedding sequence) is:
+where $\mathbf{z}^{(2)}$ (transfer-type) is the anchor,
+$\mathbf{z}^{(3)}$ (transfer-type) is the positive sample, and
+$\mathbf{z}^{(1)}$ (call-type) is the negative sample.
+The triplet contrastive loss is:
 \begin{equation}
   \mathcal{L}_{\mathrm{tri}} =
     \max\!\bigl(
@@ -663,9 +677,10 @@ embedding sequence) is:
     \bigr),
   \quad \delta = 0.3.
 \end{equation}
-The loss encourages consecutive stochastic views of the same node to
-be closer in embedding space than non-consecutive ones, promoting
-compact, discriminative representations.
+This objective encourages the model to learn representations that
+capture the semantic distinction between call-based and transfer-based
+interaction patterns, thereby improving the framework's ability to
+distinguish diverse account behaviour profiles.
 
 \subsection{Training Objective}
 
