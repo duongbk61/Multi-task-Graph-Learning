@@ -51,9 +51,10 @@ We propose \textbf{UnifiedHMSL}, a unified multi-task heterogeneous
 Graph Neural Network (GNN) that simultaneously addresses both fraud
 types within a single shared architecture.
 Our framework introduces three innovations:
-\textit{(i)} a pre-trained Conditional Variational Autoencoder (CVAE)
-that generates stochastic multi-view node-feature augmentations to
-alleviate class imbalance;
+\textit{(i)} a pre-trained Interaction-aware Conditional Variational
+Autoencoder (ICVAE) that generates stochastic multi-view node-feature
+augmentations conditioned on meta-interaction type, enriching node
+representations for multi-view contrastive learning;
 \textit{(ii)} a Cross-Path Attention (CPA) module enabling mutual,
 gated information exchange between a generative CVAE-based
 representation path and a contrastive raw-feature-based path; and
@@ -209,10 +210,13 @@ minority-class nodes in the graph embedding space.
 CVAE-based augmentation~\cite{li2022graphvae} generates synthetic
 node features conditioned on neighbourhood context, improving
 minority-class representation without distorting the graph topology.
-Our ICVAE module follows this paradigm, conditioning generation on
-source node features \textit{and} edge type, producing $K$ stochastic
-views per node that serve as anchor, positive, and negative samples
-for contrastive self-supervision.
+Unlike oversampling approaches, our ICVAE does not synthesise new
+nodes; instead it generates $K$ stochastic feature views per
+\emph{existing} node, conditioned jointly on the source node features
+and meta-interaction type.  These views serve as structured
+anchor/positive/negative samples for contrastive self-supervision,
+enriching the representation of low-activity nodes that would
+otherwise be underrepresented in the feature space.
 
 %-------------------------------------------------------------------
 \section{Proposed Methodology}
@@ -376,10 +380,17 @@ stored in $\mathbf{X}^{CA}$ and $\mathbf{X}^{EOA}$.
 
 \subsection{Conditional VAE-based Feature Augmentation}
 
-To address class imbalance, we employ a pre-trained Improved
-Conditional Variational Autoencoder (ICVAE)~\cite{li2022graphvae}
-that generates synthetic augmented feature views conditioned on source
-node features and edge type.
+To enrich node representations through stochastic multi-view feature
+augmentation, we employ a pre-trained Interaction-aware Conditional
+Variational Autoencoder (ICVAE)~\cite{li2022graphvae}.
+Unlike oversampling methods that create additional minority-class
+nodes, ICVAE generates $K$ stochastic feature views for every
+existing node by sampling from a learned latent distribution
+conditioned on source node features and meta-interaction type.
+This augmentation strategy does not alter the class distribution
+directly; rather, it produces richer, more varied representations
+that improve contrastive self-supervision and reduce feature-space
+variance for nodes with low interaction activity.
 
 The encoder maps an input node feature $\mathbf{x}$, a condition
 vector $\mathbf{c}$ (source neighbourhood features), and an edge-type
