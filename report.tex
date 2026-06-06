@@ -595,16 +595,29 @@ Crucially, \emph{separate} TCG modules are used for CA and EOA node
 types, allowing the Ponzi task and the phishing task to develop
 distinct blending strategies from the same underlying feature space.
 
-\subsection{Neuro-Symbolic Integration (Expert Rules)}
+\subsection{Neuro-Symbolic Integration (Decision-Tree-Distilled Rules)}
 \label{sec:expert}
 
-To inject domain knowledge into the neural pipeline we define
-two symbolic scoring functions derived from on-chain transaction
-anomaly patterns.
+To inject interpretable symbolic priors into the neural pipeline, we
+distill a set of lightweight decision rules from the data rather than
+hand-crafting them. Concretely, we fit a shallow Decision Tree
+(maximum depth $3$) on the \emph{training split only}, using the same
+normalized node features consumed by the GNN, and extract the
+root-to-leaf decision paths as boolean scoring functions $s^P$ (Ponzi)
+and $s^H$ (phishing). Because the rules are induced solely from
+training-set statistics and never observe validation or test labels,
+this procedure introduces \emph{no information leakage}.
+
+Since the input features are pre-normalized, the extracted thresholds
+operate in the normalized feature space and should be interpreted as
+learned split points rather than raw on-chain quantities. Some
+branches (e.g.\ conditions of the form $x > -10$) act as near-trivial
+guards that the tree retains but which contribute little discriminative
+power; we keep them for fidelity to the distilled tree.
 
 \medskip\noindent\textbf{Ponzi score.}
-A CA node is flagged by expert rule $s^P\!\in\!\{0,1\}$ if it
-exhibits a known Ponzi redistribution signature:
+A CA node is flagged by rule $s^P\!\in\!\{0,1\}$ if it
+matches a distilled Ponzi redistribution branch:
 \begin{equation}
   s^P = \mathbf{1}\!\left[
     \bigl(\mathbf{x}^{CA}_{7} > 0\bigr)
@@ -621,8 +634,8 @@ where $\mathbf{x}^{CA}_{0},\mathbf{x}^{CA}_{4},\mathbf{x}^{CA}_{7},
 total sent, and transfer balance respectively.
 
 \medskip\noindent\textbf{Phishing score.}
-An EOA node is flagged by expert rule $s^H\!\in\!\{0,1\}$ under two
-complementary conditions:
+An EOA node is flagged by rule $s^H\!\in\!\{0,1\}$ under two
+complementary distilled branches:
 \begin{equation}
   s^H = \mathbf{1}\!\left[
     \mathbf{x}^{EOA}_{8} \le 102.04
@@ -646,11 +659,34 @@ hyperparameter \texttt{expert\_mode}:
   extra input dimension to the CA (resp.\ EOA) node representation
   before the classification head:
   $\mathbf{h}^{\mathrm{final}}_{CA} = [\mathbf{h}_{CA}; s^P]$.
-\item \textbf{Loss mode}: expert scores serve as soft targets in an
+\item \textbf{Loss mode}: rule scores serve as soft targets in an
   auxiliary MSE loss that penalises disagreement between the neural
   prediction and the symbolic score, without modifying the feature
   space.
 \end{itemize}
+
+\medskip\noindent\textbf{Standalone rule evaluation.}
+To quantify the intrinsic signal carried by the distilled symbolic
+priors independently of the GNN, we evaluate each rule set as a
+standalone classifier on the test split, reporting precision, recall,
+and coverage in Table~\ref{tab:rules}. This isolates the contribution
+of the symbolic component from the learned neural representations.
+
+\begin{table}[h]
+\centering
+\caption{Standalone evaluation of the distilled rules on the test
+split. Coverage denotes the fraction of nodes flagged positive by the
+rule.}
+\label{tab:rules}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Rule set & Precision & Recall & Coverage \\
+\midrule
+Ponzi ($s^P$)    & -- & -- & -- \\
+Phishing ($s^H$) & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Contrastive Self-Supervision via Triplet Loss}
 
