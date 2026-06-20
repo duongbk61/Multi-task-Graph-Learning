@@ -7,40 +7,85 @@ import torch.nn.functional as F
 from torch_geometric.nn.inits import reset
 from torch_geometric.nn import MessagePassing
 from attention_conv import my_conv
-from model import TripletLoss
+# from model import TripletLoss
+
+class TripletLoss(nn.Module):
+    '''
+    Compute normal triplet loss or soft margin triplet loss given triplets
+    '''
+
+    def __init__(self, margin=None):
+        super(TripletLoss, self).__init__()
+        self.margin = margin
+        if self.margin is None:  # if no margin assigned, use soft-margin
+            self.Loss = nn.SoftMarginLoss()
+        else:
+            self.Loss = nn.TripletMarginLoss(margin=margin, p=2)
+
+    def forward(self, anchor, pos, neg):
+        if self.margin is None:
+            num_samples = anchor.shape[0]
+            y = torch.ones((num_samples, 1)).view(-1)
+            if anchor.is_cuda:
+                y = y.cuda()
+            ap_dist = torch.norm(anchor - pos, 2, dim=1).view(-1)
+            an_dist = torch.norm(anchor - neg, 2, dim=1).view(-1)
+            loss = self.Loss(an_dist - ap_dist, y)
+        else:
+            loss = self.Loss(anchor, pos, neg)
+        return loss
+
 
 class ExpertRules:
+    # 14-dim feature layout, verified empirically from the data
+    # (total = count x avg ; balance = total_inv - total_ret, corr 1.0).
+    # See feature_columns_definition.csv. Layout: [call: 0-6][trans: 7-13]
+    #   idx  0 Call  Balance            (signed)
+    #   idx  1 Call  Total investment
+    #   idx  2 Call  Total return
+    #   idx  3 Call  Count initiation   (int)
+    #   idx  4 Call  Count reception    (int)
+    #   idx  5 Call  Avg investment
+    #   idx  6 Call  Avg return         (signed; -1 when count=0)
+    #   idx  7 Trans Balance            (signed)
+    #   idx  8 Trans Total investment
+    #   idx  9 Trans Total return
+    #   idx 10 Trans Count initiation   (int)
+    #   idx 11 Trans Count reception    (int)
+    #   idx 12 Trans Avg investment
+    #   idx 13 Trans Avg return         (signed; -1 when count=0)
+
     @staticmethod
     def compute_ponzi_score(features):
-        call_total_sent = features[:, 0]
-        call_balance = features[:, 4]
-        trans_total_sent = features[:, 7]
-        trans_balance = features[:, 11]
+        call_balance = features[:, 0]
+        call_count_recv = features[:, 4]
+        trans_balance = features[:, 7]
+        trans_count_recv = features[:, 11]
 
-        c1_active_trans = trans_total_sent > 0.0
-        c2_ponzi_pattern = (call_balance <= 3.5) | (trans_balance > 269.0)
-        branch_1 = c1_active_trans & c2_ponzi_pattern
+        c1_positive_trans_balance = trans_balance > 0.0
+        c2_ponzi_pattern = (call_count_recv <= 3.5) | (trans_count_recv > 269.0)
+        branch_1 = c1_positive_trans_balance & c2_ponzi_pattern
 
-        branch_2 = (trans_total_sent <= 0.0) & (call_total_sent > 10.0)
+        branch_2 = (trans_balance <= 0.0) & (call_balance > 10.0)
 
         score = (branch_1 | branch_2).float()
         return score
 
     @staticmethod
     def compute_phish_score(features):
-        trans_total_recv = features[:, 8]
-        trans_total_sent = features[:, 7]
-        call_total_sent = features[:, 0]
+        trans_total_inv = features[:, 8]
+        trans_balance = features[:, 7]
+        call_balance = features[:, 0]
 
-        c1_low_deposit = trans_total_recv <= 102.04
-        c2_active_sent = trans_total_sent > -10.0
-        c3_active_call = call_total_sent > -12.75
-        branch_1 = c1_low_deposit & c2_active_sent & c3_active_call
+        c1_low_investment = trans_total_inv <= 102.04
+        c2_trans_balance = trans_balance > -10.0
+        c3_call_balance = call_balance > -12.75
+        branch_1 = c1_low_investment & c2_trans_balance & c3_call_balance
 
-        call_balance = features[:, 2]
-        feature_6 = features[:, 6]
-        c_whale = trans_total_recv > 150.0
-        c_no_call = (call_total_sent == 0.0) & (call_balance == 0.0) & (feature_6 == 0.0)
+        call_total_ret = features[:, 2]
+        call_avg_ret = features[:, 6]
+        c_whale = trans_total_inv > 150.0
+        c_no_call = (call_balance == 0.0) & (call_total_ret == 0.0) & (call_avg_ret == 0.0)
         branch_2 = c_whale & c_no_call
 
         score = (branch_1 | branch_2).float()

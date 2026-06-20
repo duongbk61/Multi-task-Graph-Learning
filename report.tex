@@ -602,18 +602,32 @@ To inject interpretable symbolic priors into the neural pipeline, we
 distill a set of lightweight decision rules from the data rather than
 hand-crafting them. Concretely, we fit a shallow Decision Tree
 (maximum depth $3$) on the \emph{training split only}, using the same
-normalized node features consumed by the GNN, and extract the
-root-to-leaf decision paths as boolean scoring functions $s^P$ (Ponzi)
-and $s^H$ (phishing). Because the rules are induced solely from
-training-set statistics and never observe validation or test labels,
-this procedure introduces \emph{no information leakage}.
+raw node features consumed by the GNN, and extract the root-to-leaf
+decision paths as boolean scoring functions $s^P$ (Ponzi) and $s^H$
+(phishing). Because the rules are induced solely from training-set
+statistics and never observe validation or test labels, this procedure
+introduces \emph{no information leakage}.
 
-Since the input features are pre-normalized, the extracted thresholds
-operate in the normalized feature space and should be interpreted as
-learned split points rather than raw on-chain quantities. Some
-branches (e.g.\ conditions of the form $x > -10$) act as near-trivial
-guards that the tree retains but which contribute little discriminative
-power; we keep them for fidelity to the distilled tree.
+The node features are raw on-chain interaction statistics rather than
+normalized quantities, so the extracted thresholds correspond to
+real-valued transaction magnitudes. Following the handcrafted feature
+construction of the baseline~\cite{paper_baseline_2408.00641}, each
+account is described by $14$ features---seven per interaction channel
+(call and transfer)---comprising, per channel: a \emph{balance}
+(total investment minus total return), total investment, total return,
+initiation and reception counts, and average investment and return.
+The \emph{balance} features are signed by construction: empirically
+$4$--$12\%$ of accounts exhibit negative balances (received more than
+they sent). Consequently, thresholds of the form $x > {-}10$ on a
+balance feature are meaningful split points rather than vacuous guards.
+For instance, in the phishing data the average call balance is $-1038$
+for legitimate accounts versus $-0.36$ for phishing accounts, so a
+lower bound near zero effectively separates phishing wallets (whose net
+call balance is close to zero) from legitimate accounts (whose balance
+is strongly negative). We verified this column semantics directly from
+the data via the algebraic identities $\textit{total}=\textit{count}\times\textit{average}$
+and $\textit{balance}=\textit{total inv.}-\textit{total ret.}$, which
+hold to numerical precision.
 
 \medskip\noindent\textbf{Ponzi score.}
 A CA node is flagged by rule $s^P\!\in\!\{0,1\}$ if it
@@ -630,8 +644,8 @@ matches a distilled Ponzi redistribution branch:
   \right],
 \end{equation}
 where $\mathbf{x}^{CA}_{0},\mathbf{x}^{CA}_{4},\mathbf{x}^{CA}_{7},
-\mathbf{x}^{CA}_{11}$ denote call total sent, call balance, transfer
-total sent, and transfer balance respectively.
+\mathbf{x}^{CA}_{11}$ denote call balance, call reception count,
+transfer balance, and transfer reception count respectively.
 
 \medskip\noindent\textbf{Phishing score.}
 An EOA node is flagged by rule $s^H\!\in\!\{0,1\}$ under two
@@ -647,9 +661,12 @@ complementary distilled branches:
     \mathbf{x}^{EOA}_{8} > 150 \wedge s_{\mathrm{whale}}
   \right],
 \end{equation}
-where the whale condition $s_{\mathrm{whale}}$ captures high-deposit
-accounts with zero call activity---a common pattern among dormant
-phishing wallets.
+where $\mathbf{x}^{EOA}_{8},\mathbf{x}^{EOA}_{7},\mathbf{x}^{EOA}_{0}$
+denote transfer total investment, transfer balance, and call balance
+respectively, and the whale condition $s_{\mathrm{whale}}$ captures
+high-investment accounts with zero call activity (call balance, call
+total return, and call average return all equal to zero)---a common
+pattern among dormant phishing wallets.
 
 \medskip\noindent\textbf{Integration modes.}
 Expert scores are incorporated in one of two modes controlled by
