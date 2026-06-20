@@ -114,8 +114,21 @@ class Ponzi(InMemoryDataset):
 
         CA_y = torch.tensor([1] * 191 + [0] * 1151)
         m = np.array(list(range(0, 1342)))
-        train_index, test_index = train_test_split(m, test_size=0.2, random_state=args.seed, stratify=CA_y)
-        train_index, val_index = train_test_split(train_index, test_size=0.25, random_state=args.seed,
+        # --- Train/Test split: FIXED seed, intentionally NOT args.seed ---
+        # The test partition must be identical across every experiment seed so that
+        #  (1) results stay comparable to the original baseline repo's split, and
+        #  (2) the DT-distilled expert rules (fit on the train pool) never observe
+        #      the test set -> no leakage, regardless of which seed we run.
+        SPLIT_SEED = 14
+        train_index, test_index = train_test_split(m, test_size=0.2, random_state=SPLIT_SEED, stratify=CA_y)
+        # --- Train/Val split: ALSO fixed via SPLIT_SEED ---
+        # The ENTIRE train/val/test partition is held constant across all experiments.
+        # args.seed is deliberately NOT used for data splitting; it drives only random
+        # weight initialization + stochastic CVAE augmentation at training time
+        # (see seed_everything() in run_unified.py). This implements the reporting
+        # protocol: "fixed split + K random restarts" -> the reported std reflects
+        # initialization/augmentation variance, not data-partition variance.
+        train_index, val_index = train_test_split(train_index, test_size=0.25, random_state=SPLIT_SEED,
                                                   stratify=CA_y[train_index])
 
         data = HeteroData()
@@ -262,8 +275,21 @@ class Phish(InMemoryDataset):
 
         EOA_y = torch.tensor([1] * 1206 + [0] * 1557)
         m = np.array(list(range(0, 1206 + 1557)))
-        train_index, test_index = train_test_split(m, test_size=0.2, random_state=args.seed, stratify=EOA_y)
-        train_index, val_index = train_test_split(train_index, test_size=0.25, random_state=args.seed,
+        # --- Train/Test split: FIXED seed, intentionally NOT args.seed ---
+        # The test partition must be identical across every experiment seed so that
+        #  (1) results stay comparable to the original baseline repo's split, and
+        #  (2) the DT-distilled expert rules (fit on the train pool) never observe
+        #      the test set -> no leakage, regardless of which seed we run.
+        SPLIT_SEED = 14
+        train_index, test_index = train_test_split(m, test_size=0.2, random_state=SPLIT_SEED, stratify=EOA_y)
+        # --- Train/Val split: ALSO fixed via SPLIT_SEED ---
+        # The ENTIRE train/val/test partition is held constant across all experiments.
+        # args.seed is deliberately NOT used for data splitting; it drives only random
+        # weight initialization + stochastic CVAE augmentation at training time
+        # (see seed_everything() in run_unified.py). This implements the reporting
+        # protocol: "fixed split + K random restarts" -> the reported std reflects
+        # initialization/augmentation variance, not data-partition variance.
+        train_index, val_index = train_test_split(train_index, test_size=0.25, random_state=SPLIT_SEED,
                                                   stratify=EOA_y[train_index])
 
         data = HeteroData()

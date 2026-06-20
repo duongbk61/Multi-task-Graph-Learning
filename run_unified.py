@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import trange
 import os.path as osp
-from utils import get_parser, one_hot, mkdir, feature_tensor_normalize
+from utils import get_parser, one_hot, mkdir, feature_tensor_normalize, seed_everything
 from torch_geometric.loader import NeighborLoader
 from dataset import Ponzi, Phish
 from unified_model import UnifiedHMSL
@@ -155,6 +155,11 @@ def evaluate(model, loader, aug_model, target_node, task_type, args, device):
 
 if __name__ == '__main__':
     args = get_parser()
+    # Reporting protocol: the data split is FIXED (see SPLIT_SEED in dataset.py).
+    # args.seed seeds only weight init + stochastic CVAE augmentation, so each seed
+    # is a reproducible random restart. Report mean +/- std over several seeds;
+    # this std reflects initialization/augmentation variance on the fixed split.
+    seed_everything(args.seed)
     print("\n" + "="*50)
     print("      CONFIGURATIONS")
     print("-" * 50)
