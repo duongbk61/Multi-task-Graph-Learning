@@ -13,3 +13,6 @@ model.py
 *.ipynb
 *.pth
 *analysis.py
+.venv/
+HEIG/
+*.zip

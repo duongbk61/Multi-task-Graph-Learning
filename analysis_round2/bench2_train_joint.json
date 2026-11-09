@@ -1,0 +1,23 @@
+{
+  "variant": "joint",
+  "seed": 14,
+  "batch": 128,
+  "epochs": 29,
+  "best_epoch": 8,
+  "steps_per_epoch": 7,
+  "params": 538122,
+  "train_s": 178.49579460002133,
+  "val_s": 45.60911229997873,
+  "test_s": 11.757464399997843,
+  "train_val_s": 224.10490690000006,
+  "s_per_epoch": 6.155027400000735,
+  "peak_alloc_bytes": 5245550080,
+  "peak_alloc_gib": 4.885299205780029,
+  "peak_alloc_gb": 5.24555008,
+  "peak_reserved_gib": 10.275390625,
+  "test_macro_f1": {
+    "ponzi": 0.8445685670261942,
+    "phish": 0.9779153354632588
+  },
+  "ckpt_mb": 2.078749656677246
+}

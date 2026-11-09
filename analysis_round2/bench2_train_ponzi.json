@@ -1,0 +1,22 @@
+{
+  "variant": "ponzi",
+  "seed": 14,
+  "batch": 128,
+  "epochs": 58,
+  "best_epoch": 37,
+  "steps_per_epoch": 7,
+  "params": 538122,
+  "train_s": 251.27452330004598,
+  "val_s": 39.98038239995367,
+  "test_s": 5.581284300031257,
+  "train_val_s": 291.25490569999965,
+  "s_per_epoch": 4.332319367242172,
+  "peak_alloc_bytes": 4049631232,
+  "peak_alloc_gib": 3.771512985229492,
+  "peak_alloc_gb": 4.049631232,
+  "peak_reserved_gib": 8.818359375,
+  "test_macro_f1": {
+    "ponzi": 0.8162628069604814
+  },
+  "ckpt_mb": 2.078749656677246
+}

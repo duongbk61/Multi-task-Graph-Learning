@@ -1,0 +1,305 @@
+{
+  "info": {
+    "t_load_data_s": 6.2094902000098955,
+    "t_load_icvae_s": 0.244431800005259,
+    "sizes": {
+      "ponzi": {
+        "train": 804,
+        "val": 269,
+        "test": 269,
+        "ca": 3104188,
+        "eoa": 25199827,
+        "edges": 69446459
+      },
+      "phish": {
+        "train": 1657,
+        "val": 553,
+        "test": 553,
+        "ca": 2279349,
+        "eoa": 22429276,
+        "edges": 54216475
+      }
+    },
+    "steps_per_epoch": 13,
+    "icvae_params": 12466
+  },
+  "base_mem": 260.0,
+  "runs": [
+    {
+      "seed": 14,
+      "params": 538122,
+      "epochs": 44,
+      "best_epoch": 23,
+      "run_s": 295.4281222999998,
+      "train_epoch_s": 4.656491034089743,
+      "train_epoch_std": 0.7331630672344207,
+      "val_s": 1.7068192772729327,
+      "test_s": 1.706376200003433,
+      "test_evals": 9,
+      "train_peak": {
+        "alloc_mb": 3094.3837890625,
+        "reserved_mb": 5418.0
+      },
+      "eval_peak": {
+        "alloc_mb": 569.6357421875,
+        "reserved_mb": 5418.0
+      },
+      "train_smi": {
+        "n": 187,
+        "mem_used_peak_mb": 5931.0,
+        "util_mean": 45.0427807486631
+      },
+      "eval_smi": {
+        "n": 89,
+        "mem_used_peak_mb": 5931.0,
+        "util_mean": 37.87640449438202
+      },
+      "ram_peak_gb": 10.371227264404297,
+      "ram_now_gb": 10.284950256347656,
+      "infer": {
+        "ponzi": {
+          "nodes": 269.0,
+          "batches": 5.0,
+          "sampling_s": 0.1167304000002332,
+          "icvae_s": 0.41876619999238757,
+          "gnn_s": 0.18289130000921433,
+          "total_s": 0.7183879000018351,
+          "sampled_nodes_mean": 18637.2,
+          "sampled_nodes_max": 30408.2,
+          "total_s_std": 0.022135597461803807,
+          "first_pass_s": 0.6930285999987973,
+          "ms_per_node": 2.6705869888544056,
+          "nodes_per_s": 374.4495139733184,
+          "batch1_ms_per_node": 21.71917299972847,
+          "batch1_sampled_nodes_mean": 317.83,
+          "batch1_peak": {
+            "alloc_mb": 53.86474609375,
+            "reserved_mb": 72.0
+          },
+          "peak": {
+            "alloc_mb": 567.95849609375,
+            "reserved_mb": 1038.0
+          },
+          "smi": {
+            "n": 6,
+            "mem_used_peak_mb": 1903.0,
+            "util_mean": 25.0
+          }
+        },
+        "phish": {
+          "nodes": 553.0,
+          "batches": 9.0,
+          "sampling_s": 0.21571797999786213,
+          "icvae_s": 0.5114910400094231,
+          "gnn_s": 0.3095756799943047,
+          "total_s": 1.03678470000159,
+          "sampled_nodes_mean": 11323.866666666667,
+          "sampled_nodes_max": 15280.4,
+          "total_s_std": 0.02694918842312989,
+          "first_pass_s": 1.0450973000115482,
+          "ms_per_node": 1.8748367088636346,
+          "nodes_per_s": 533.3797846352786,
+          "batch1_ms_per_node": 23.95328200000222,
+          "batch1_sampled_nodes_mean": 511.71,
+          "batch1_peak": {
+            "alloc_mb": 57.93115234375,
+            "reserved_mb": 90.0
+          },
+          "peak": {
+            "alloc_mb": 299.71533203125,
+            "reserved_mb": 342.0
+          },
+          "smi": {
+            "n": 8,
+            "mem_used_peak_mb": 1211.0,
+            "util_mean": 32.0
+          }
+        }
+      }
+    },
+    {
+      "seed": 21,
+      "params": 538122,
+      "epochs": 31,
+      "best_epoch": 10,
+      "run_s": 203.9567900999973,
+      "train_epoch_s": 4.433789638708526,
+      "train_epoch_std": 0.08982887007546018,
+      "val_s": 1.653967741935987,
+      "test_s": 1.684065011113287,
+      "test_evals": 9,
+      "train_peak": {
+        "alloc_mb": 3046.44482421875,
+        "reserved_mb": 4938.0
+      },
+      "eval_peak": {
+        "alloc_mb": 560.5869140625,
+        "reserved_mb": 4938.0
+      },
+      "train_smi": {
+        "n": 129,
+        "mem_used_peak_mb": 5807.0,
+        "util_mean": 45.116279069767444
+      },
+      "eval_smi": {
+        "n": 63,
+        "mem_used_peak_mb": 5807.0,
+        "util_mean": 37.96825396825397
+      },
+      "ram_peak_gb": 10.371227264404297,
+      "ram_now_gb": 10.02614974975586,
+      "infer": {
+        "ponzi": {
+          "nodes": 269.0,
+          "batches": 5.0,
+          "sampling_s": 0.10899910000443924,
+          "icvae_s": 0.41938955999794414,
+          "gnn_s": 0.18468811999773607,
+          "total_s": 0.7130767800001194,
+          "sampled_nodes_mean": 18684.4,
+          "sampled_nodes_max": 30352.6,
+          "total_s_std": 0.01983300972721836,
+          "first_pass_s": 0.7136884999927133,
+          "ms_per_node": 2.6508430483275816,
+          "nodes_per_s": 377.23847914379564,
+          "batch1_ms_per_node": 21.609090000856668,
+          "batch1_sampled_nodes_mean": 320.94,
+          "batch1_peak": {
+            "alloc_mb": 57.265625,
+            "reserved_mb": 68.0
+          },
+          "peak": {
+            "alloc_mb": 566.91796875,
+            "reserved_mb": 998.0
+          },
+          "smi": {
+            "n": 6,
+            "mem_used_peak_mb": 1863.0,
+            "util_mean": 26.5
+          }
+        },
+        "phish": {
+          "nodes": 553.0,
+          "batches": 9.0,
+          "sampling_s": 0.22012313999293837,
+          "icvae_s": 0.5104062599944882,
+          "gnn_s": 0.2994416400062619,
+          "total_s": 1.0299710399936886,
+          "sampled_nodes_mean": 11327.577777777778,
+          "sampled_nodes_max": 15281.0,
+          "total_s_std": 0.015246704051587207,
+          "first_pass_s": 1.0648837000044296,
+          "ms_per_node": 1.8625154430265614,
+          "nodes_per_s": 536.9082998716048,
+          "batch1_ms_per_node": 24.181277999450685,
+          "batch1_sampled_nodes_mean": 509.9,
+          "batch1_peak": {
+            "alloc_mb": 57.91015625,
+            "reserved_mb": 90.0
+          },
+          "peak": {
+            "alloc_mb": 299.90087890625,
+            "reserved_mb": 342.0
+          },
+          "smi": {
+            "n": 8,
+            "mem_used_peak_mb": 1207.0,
+            "util_mean": 31.25
+          }
+        }
+      }
+    },
+    {
+      "seed": 42,
+      "params": 538122,
+      "epochs": 43,
+      "best_epoch": 22,
+      "run_s": 318.42071459999715,
+      "train_epoch_s": 5.432761504649872,
+      "train_epoch_std": 0.8246546499905433,
+      "val_s": 1.7446271465122727,
+      "test_s": 1.621398866668945,
+      "test_evals": 6,
+      "train_peak": {
+        "alloc_mb": 3574.60546875,
+        "reserved_mb": 7700.0
+      },
+      "eval_peak": {
+        "alloc_mb": 564.25927734375,
+        "reserved_mb": 7700.0
+      },
+      "train_smi": {
+        "n": 220,
+        "mem_used_peak_mb": 5957.0,
+        "util_mean": 52.86818181818182
+      },
+      "eval_smi": {
+        "n": 80,
+        "mem_used_peak_mb": 5957.0,
+        "util_mean": 45.3
+      },
+      "ram_peak_gb": 11.164775848388672,
+      "ram_now_gb": 10.705612182617188,
+      "infer": {
+        "ponzi": {
+          "nodes": 269.0,
+          "batches": 5.0,
+          "sampling_s": 0.10270805999753066,
+          "icvae_s": 0.4042334800120443,
+          "gnn_s": 0.18004345999506768,
+          "total_s": 0.6869850000046427,
+          "sampled_nodes_mean": 18554.68,
+          "sampled_nodes_max": 29946.2,
+          "total_s_std": 0.025146352437917775,
+          "first_pass_s": 0.7227987000078429,
+          "ms_per_node": 2.5538475836603816,
+          "nodes_per_s": 391.5660458353269,
+          "batch1_ms_per_node": 21.419391999952495,
+          "batch1_sampled_nodes_mean": 319.15,
+          "batch1_peak": {
+            "alloc_mb": 54.2978515625,
+            "reserved_mb": 72.0
+          },
+          "peak": {
+            "alloc_mb": 550.4072265625,
+            "reserved_mb": 840.0
+          },
+          "smi": {
+            "n": 6,
+            "mem_used_peak_mb": 1671.0,
+            "util_mean": 25.333333333333332
+          }
+        },
+        "phish": {
+          "nodes": 553.0,
+          "batches": 9.0,
+          "sampling_s": 0.20798267998034134,
+          "icvae_s": 0.4994333400129108,
+          "gnn_s": 0.2998821400018642,
+          "total_s": 1.0072981599951163,
+          "sampled_nodes_mean": 11336.555555555555,
+          "sampled_nodes_max": 15269.6,
+          "total_s_std": 0.030807757210007936,
+          "first_pass_s": 1.0682531999918865,
+          "ms_per_node": 1.821515660027335,
+          "nodes_per_s": 548.9933586324441,
+          "batch1_ms_per_node": 24.00138000040897,
+          "batch1_sampled_nodes_mean": 506.78,
+          "batch1_peak": {
+            "alloc_mb": 57.85498046875,
+            "reserved_mb": 90.0
+          },
+          "peak": {
+            "alloc_mb": 299.7373046875,
+            "reserved_mb": 342.0
+          },
+          "smi": {
+            "n": 8,
+            "mem_used_peak_mb": 1173.0,
+            "util_mean": 31.375
+          }
+        }
+      }
+    }
+  ]
+}

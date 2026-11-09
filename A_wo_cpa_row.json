@@ -1,0 +1,87 @@
+{
+  "ponzi_precision": [
+    81.06,
+    5.86
+  ],
+  "ponzi_recall": [
+    57.37,
+    6.74
+  ],
+  "ponzi_binary_f1": [
+    66.76,
+    4.48
+  ],
+  "ponzi_micro_f1": [
+    92.0,
+    0.89
+  ],
+  "ponzi_macro_f1": [
+    81.1,
+    2.45
+  ],
+  "ponzi_pr_auc": [
+    69.47,
+    2.5
+  ],
+  "ponzi_roc_auc": [
+    88.32,
+    1.24
+  ],
+  "ponzi_balanced_acc": [
+    77.53,
+    3.12
+  ],
+  "ponzi_fpr": [
+    2.31,
+    1.03
+  ],
+  "phish_precision": [
+    96.37,
+    1.24
+  ],
+  "phish_recall": [
+    97.84,
+    0.65
+  ],
+  "phish_binary_f1": [
+    97.09,
+    0.38
+  ],
+  "phish_micro_f1": [
+    97.44,
+    0.35
+  ],
+  "phish_macro_f1": [
+    97.41,
+    0.36
+  ],
+  "phish_pr_auc": [
+    99.63,
+    0.06
+  ],
+  "phish_roc_auc": [
+    99.68,
+    0.06
+  ],
+  "phish_balanced_acc": [
+    97.49,
+    0.27
+  ],
+  "phish_fpr": [
+    2.86,
+    1.02
+  ],
+  "_confusion_seed": 14,
+  "ponzi_confusion": {
+    "tp": 23,
+    "fp": 10,
+    "fn": 15,
+    "tn": 221
+  },
+  "phish_confusion": {
+    "tp": 237,
+    "fp": 10,
+    "fn": 4,
+    "tn": 302
+  }
+}

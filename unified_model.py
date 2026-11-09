@@ -163,10 +163,27 @@ class TaskGate(nn.Module):
 
 
 class UnifiedHMSL(MessagePassing):
-    def __init__(self, hidden, out_channels, data, concat, expert_mode='feature'):
+    def __init__(self, hidden, out_channels, data, concat, expert_mode='feature',
+                 use_cpa=True, use_tcg=True, use_generative=True, use_contrastive=True,
+                 raw_transform='none'):
         super().__init__(aggr='sum')
         self.expert_mode = expert_mode
         self.concat_num = concat
+        # raw_transform: how to scale the RAW features that feed the contrastive path
+        # (lin_orig) and the TaskGate. The raw features are un-normalized and span up to
+        # ~8.4e7, which saturates tanh and cripples the contrastive branch. 'signed_log'
+        # applies sign(x)*log1p(|x|). ExpertRules still see the ORIGINAL raw ETH values.
+        self.raw_transform = raw_transform
+        # Ablation switches for the two fusion novelties.
+        # use_cpa: CrossPathAttention (mutual attention between generative/contrastive paths)
+        # use_tcg: TaskGate (task-conditioned learned blend); when off, fall back to a
+        #          fixed equal blend so the contrastive path still contributes.
+        # use_generative / use_contrastive: keep only one of the two representation paths
+        #          (E-A ablation: "− contrastive path (only generative)" / vice-versa).
+        self.use_cpa = use_cpa
+        self.use_tcg = use_tcg
+        self.use_generative = use_generative
+        self.use_contrastive = use_contrastive
         self.loss_co = TripletLoss(margin=0.3)
 
         self.lin_dict = torch.nn.ModuleDict()
@@ -239,19 +256,39 @@ class UnifiedHMSL(MessagePassing):
         h_gen_ca  = self.attention(ca_out_ls,  'CA')
         h_gen_eoa = self.attention(eoa_out_ls, 'EOA')
 
-        if raw_x_dict is not None:
-            # --- Contrastive path: linear transform of original raw features ---
-            h_cont_ca  = F.tanh(self.lin_orig['CA'] (raw_x_dict['CA']))
-            h_cont_eoa = F.tanh(self.lin_orig['EOA'](raw_x_dict['EOA']))
-
-            # --- Option 1: Cross-path mutual attention ---
-            h_gen_ca_prime,  h_cont_ca_prime  = self.cross_attn['CA'] (h_gen_ca,  h_cont_ca)
-            h_gen_eoa_prime, h_cont_eoa_prime = self.cross_attn['EOA'](h_gen_eoa, h_cont_eoa)
-
-            # --- Option 2: Task-conditioned gate ---
-            out_dict['CA']  = self.task_gate['CA'] (raw_x_dict['CA'],  h_gen_ca_prime,  h_cont_ca_prime)
-            out_dict['EOA'] = self.task_gate['EOA'](raw_x_dict['EOA'], h_gen_eoa_prime, h_cont_eoa_prime)
+        # Scaled raw features for the contrastive path + TaskGate (ExpertRules keep raw).
+        if raw_x_dict is not None and self.raw_transform == 'signed_log':
+            rt = {k: torch.sign(v) * torch.log1p(v.abs()) for k, v in raw_x_dict.items()}
         else:
+            rt = raw_x_dict
+
+        if raw_x_dict is not None and self.use_contrastive and self.use_generative:
+            # --- Both paths present: contrastive path + CPA/TCG fusion ---
+            h_cont_ca  = F.tanh(self.lin_orig['CA'] (rt['CA']))
+            h_cont_eoa = F.tanh(self.lin_orig['EOA'](rt['EOA']))
+
+            # --- Option 1: Cross-path mutual attention (ablatable via use_cpa) ---
+            if self.use_cpa:
+                h_gen_ca_prime,  h_cont_ca_prime  = self.cross_attn['CA'] (h_gen_ca,  h_cont_ca)
+                h_gen_eoa_prime, h_cont_eoa_prime = self.cross_attn['EOA'](h_gen_eoa, h_cont_eoa)
+            else:
+                h_gen_ca_prime,  h_cont_ca_prime  = h_gen_ca,  h_cont_ca
+                h_gen_eoa_prime, h_cont_eoa_prime = h_gen_eoa, h_cont_eoa
+
+            # --- Option 2: Task-conditioned gate (ablatable via use_tcg) ---
+            if self.use_tcg:
+                out_dict['CA']  = self.task_gate['CA'] (rt['CA'],  h_gen_ca_prime,  h_cont_ca_prime)
+                out_dict['EOA'] = self.task_gate['EOA'](rt['EOA'], h_gen_eoa_prime, h_cont_eoa_prime)
+            else:
+                # fixed equal blend instead of the learned task-conditioned gate
+                out_dict['CA']  = 0.5 * (h_gen_ca_prime  + h_cont_ca_prime)
+                out_dict['EOA'] = 0.5 * (h_gen_eoa_prime + h_cont_eoa_prime)
+        elif raw_x_dict is not None and self.use_contrastive and not self.use_generative:
+            # --- E-A: contrastive path ONLY (no generative fusion) ---
+            out_dict['CA']  = F.tanh(self.lin_orig['CA'] (rt['CA']))
+            out_dict['EOA'] = F.tanh(self.lin_orig['EOA'](rt['EOA']))
+        else:
+            # --- generative path ONLY (raw_x_dict is None, or use_contrastive=False) ---
             out_dict['CA']  = h_gen_ca
             out_dict['EOA'] = h_gen_eoa
 

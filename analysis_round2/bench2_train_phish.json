@@ -1,0 +1,22 @@
+{
+  "variant": "phish",
+  "seed": 14,
+  "batch": 128,
+  "epochs": 42,
+  "best_epoch": 21,
+  "steps_per_epoch": 13,
+  "params": 538122,
+  "train_s": 97.26113440001791,
+  "val_s": 27.31929990000208,
+  "test_s": 4.775663899985375,
+  "train_val_s": 124.58043430001999,
+  "s_per_epoch": 2.3157412952385217,
+  "peak_alloc_bytes": 1754913792,
+  "peak_alloc_gib": 1.6343908309936523,
+  "peak_alloc_gb": 1.754913792,
+  "peak_reserved_gib": 3.6171875,
+  "test_macro_f1": {
+    "phish": 0.9742592297052878
+  },
+  "ckpt_mb": 2.078749656677246
+}

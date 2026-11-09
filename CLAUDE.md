@@ -22,7 +22,7 @@ Meta-IFD hợp nhất thành **một model duy nhất** với:
 
 ## Train command
 ```
-python run_unified.py --expert_mode feature --aug_method cvae --hidden 128 --epochs 1000 --lr 0.001 --batch_size 512 --gpu 0
+python run_unified.py --expert_mode feature --aug_method icvae --hidden 128 --epochs 1000 --lr 0.001 --batch_size 512 --gpu 0
 ```
 
 ---

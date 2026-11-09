@@ -1,0 +1,96 @@
+{
+  "info": {
+    "t_load_data_s": 6.3018872999964515,
+    "t_load_icvae_s": 0.20245100000465754,
+    "sizes": {
+      "ponzi": {
+        "train": 804,
+        "val": 269,
+        "test": 269,
+        "ca": 3104188,
+        "eoa": 25199827,
+        "edges": 69446459
+      },
+      "phish": {
+        "train": 1657,
+        "val": 553,
+        "test": 553,
+        "ca": 2279349,
+        "eoa": 22429276,
+        "edges": 54216475
+      }
+    },
+    "steps_per_epoch": 13,
+    "icvae_params": 12466
+  },
+  "base_mem": 214.0,
+  "runs": [],
+  "mean_fusion": {
+    "params": 536330,
+    "train_epoch_s": 8.01901972000196,
+    "train_peak": {
+      "alloc_mb": 2713.71435546875,
+      "reserved_mb": 5096.0
+    },
+    "infer": {
+      "ponzi": {
+        "nodes": 269.0,
+        "batches": 5.0,
+        "sampling_s": 0.12265056000032928,
+        "icvae_s": 0.4808465999900363,
+        "gnn_s": 0.16325696000712925,
+        "total_s": 0.7667541199974949,
+        "sampled_nodes_mean": 18771.68,
+        "sampled_nodes_max": 30691.6,
+        "total_s_std": 0.024927572592778006,
+        "first_pass_s": 0.7443675999966217,
+        "ms_per_node": 2.8503870631877133,
+        "nodes_per_s": 350.8295462447321,
+        "batch1_ms_per_node": 23.317874000349548,
+        "batch1_sampled_nodes_mean": 330.06,
+        "batch1_peak": {
+          "alloc_mb": 49.56201171875,
+          "reserved_mb": 62.0
+        },
+        "peak": {
+          "alloc_mb": 536.81494140625,
+          "reserved_mb": 1038.0
+        },
+        "smi": {
+          "n": 7,
+          "mem_used_peak_mb": 1686.0,
+          "util_mean": 36.857142857142854
+        }
+      },
+      "phish": {
+        "nodes": 553.0,
+        "batches": 9.0,
+        "sampling_s": 0.24644498000852763,
+        "icvae_s": 0.5784181399969384,
+        "gnn_s": 0.23909269999421667,
+        "total_s": 1.0639558199996828,
+        "sampled_nodes_mean": 11298.244444444445,
+        "sampled_nodes_max": 15237.6,
+        "total_s_std": 0.02928621721037599,
+        "first_pass_s": 1.1017126999940956,
+        "ms_per_node": 1.9239707414099145,
+        "nodes_per_s": 519.7584238038802,
+        "batch1_ms_per_node": 25.117660999530926,
+        "batch1_sampled_nodes_mean": 506.65,
+        "batch1_peak": {
+          "alloc_mb": 51.0517578125,
+          "reserved_mb": 84.0
+        },
+        "peak": {
+          "alloc_mb": 280.57568359375,
+          "reserved_mb": 316.0
+        },
+        "smi": {
+          "n": 9,
+          "mem_used_peak_mb": 1164.0,
+          "util_mean": 32.55555555555556
+        }
+      }
+    }
+  }
+}

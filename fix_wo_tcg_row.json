@@ -1,0 +1,42 @@
+{
+  "ponzi_precision": [
+    82.81,
+    7.65
+  ],
+  "ponzi_recall": [
+    56.32,
+    4.88
+  ],
+  "ponzi_binary_f1": [
+    66.65,
+    3.68
+  ],
+  "ponzi_micro_f1": [
+    92.04,
+    1.01
+  ],
+  "ponzi_macro_f1": [
+    81.07,
+    2.08
+  ],
+  "phish_precision": [
+    94.19,
+    1.04
+  ],
+  "phish_recall": [
+    98.01,
+    0.8
+  ],
+  "phish_binary_f1": [
+    96.06,
+    0.74
+  ],
+  "phish_micro_f1": [
+    96.49,
+    0.66
+  ],
+  "phish_macro_f1": [
+    96.45,
+    0.67
+  ]
+}
